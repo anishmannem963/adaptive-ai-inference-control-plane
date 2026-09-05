@@ -103,6 +103,7 @@ class ExactResponseCache:
         material = json.dumps(
             {
                 "provider": provider,
+                "model": request.model,
                 "messages": [message.model_dump() for message in request.messages],
                 "temperature": request.temperature,
                 "max_tokens": request.max_tokens,
@@ -165,7 +166,8 @@ class IdempotencyStore:
         return f"idempotency:v1:{hashlib.sha256(raw).hexdigest()}"
 
     def _fingerprint(self, request: ChatCompletionRequest) -> str:
-        return hashlib.sha256(request.model_dump_json().encode()).hexdigest()
+        material = json.dumps(request.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(material.encode()).hexdigest()
 
     async def replay(
         self,
@@ -176,12 +178,18 @@ class IdempotencyStore:
         value = await self._backend.get(self._key(client_id, idempotency_key))
         if value is None:
             return None
-        record = json.loads(value)
-        if record["fingerprint"] != self._fingerprint(request):
+        try:
+            record = json.loads(value)
+            fingerprint = record["fingerprint"]
+            stored_response = record["response"]
+        except (KeyError, TypeError, ValueError):
+            self.statistics.backend_errors += 1
+            return None
+        if fingerprint != self._fingerprint(request):
             self.statistics.idempotency_conflicts += 1
             raise IdempotencyConflictError("idempotency key reused with different request")
         self.statistics.idempotent_replays += 1
-        return ChatCompletionResponse.model_validate(record["response"])
+        return ChatCompletionResponse.model_validate(stored_response)
 
     async def store(
         self,
