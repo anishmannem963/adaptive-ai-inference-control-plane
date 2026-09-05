@@ -42,7 +42,7 @@ curl http://localhost:8080/v1/providers/health
 curl http://localhost:8080/v1/cache/status
 ~~~
 
-A completion response identifies every attempted provider, fallback count, and whether the selected result was served from cache. The `X-Cache` response header reports `MISS`, `HIT`, or `REPLAY`.
+A completion response identifies every attempted provider, fallback count, and whether the selected result was served from cache. The `X-Cache` response header reports `MISS`, `HIT`, `REPLAY`, or `BYPASS` when response caching is disabled.
 
 ## Run locally
 
