@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import asdict
 
 from fastapi import FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
@@ -90,7 +91,7 @@ def create_app(
     @app.get("/v1/providers/health", response_model=list[ProviderHealth], tags=["system"])
     async def provider_health() -> list[ProviderHealth]:
         return [
-            ProviderHealth(**snapshot.__dict__)
+            ProviderHealth(**asdict(snapshot))
             for snapshot in await runtime.health()
         ]
 
