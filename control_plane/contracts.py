@@ -95,6 +95,8 @@ class RoutingMetadata(BaseModel):
     policy: str
     decision_reason: str
     eligible_providers: list[str]
+    attempted_providers: list[str]
+    fallback_count: int
     request_id: str
     simulated: bool
     estimated_cost_usd: str
