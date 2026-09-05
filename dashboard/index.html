@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Live observability console for the Adaptive AI Inference Control Plane."
+    />
+    <title>Adaptive AI Control Plane · Observatory</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <header class="shell topbar">
+      <a class="brand" href="/" aria-label="Adaptive AI Control Plane home">
+        <span class="brand-mark">A</span>
+        <span>
+          <strong>Adaptive AI</strong>
+          <small>Control Plane Observatory</small>
+        </span>
+      </a>
+      <div class="connection">
+        <span id="connection-dot" class="status-dot"></span>
+        <span id="connection-label">Not connected</span>
+      </div>
+    </header>
+
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">INTERVIEW DEMO · LIVE SYSTEM STATE</p>
+          <h1>See every inference decision.</h1>
+          <p class="hero-copy">
+            Inspect routing, provider health, cache behavior, failover, latency, and distributed
+            traces from one evidence-driven control plane.
+          </p>
+        </div>
+        <div class="endpoint-card">
+          <label for="api-url">Gateway URL</label>
+          <div class="endpoint-row">
+            <input id="api-url" type="url" value="http://localhost:8080" />
+            <button id="connect-button" class="button secondary" type="button">Connect</button>
+          </div>
+          <p id="last-refresh">Waiting for a gateway connection.</p>
+        </div>
+      </section>
+
+      <section class="kpi-grid" aria-label="System metrics">
+        <article class="kpi">
+          <span>Completed requests</span>
+          <strong id="completed-requests">0</strong>
+          <small>Bounded runtime summary</small>
+        </article>
+        <article class="kpi">
+          <span>Average latency</span>
+          <strong><span id="average-latency">0</span><em> ms</em></strong>
+          <small>End-to-end gateway time</small>
+        </article>
+        <article class="kpi">
+          <span>Cache efficiency</span>
+          <strong><span id="cache-efficiency">0</span><em>%</em></strong>
+          <small id="cache-detail">0 hits · 0 replays</small>
+        </article>
+        <article class="kpi">
+          <span>Fallback transitions</span>
+          <strong id="fallback-count">0</strong>
+          <small>Provider isolation events</small>
+        </article>
+      </section>
+
+      <section class="workspace-grid">
+        <article class="panel playground">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">REQUEST PLAYGROUND</p>
+              <h2>Route a completion</h2>
+            </div>
+            <span class="badge">OpenAI-compatible</span>
+          </div>
+
+          <form id="request-form">
+            <label for="prompt">Prompt</label>
+            <textarea id="prompt" rows="4">Explain why health-aware routing matters.</textarea>
+
+            <div class="form-grid">
+              <label>
+                Policy
+                <select id="policy">
+                  <option value="adaptive">Adaptive</option>
+                  <option value="lowest_cost">Lowest cost</option>
+                  <option value="lowest_latency">Lowest latency</option>
+                  <option value="highest_quality">Highest quality</option>
+                  <option value="round_robin">Round robin</option>
+                </select>
+              </label>
+              <label>
+                Minimum quality
+                <input id="quality" type="number" min="0" max="1" step="0.05" value="0.7" />
+              </label>
+              <label>
+                Max latency
+                <input id="latency-budget" type="number" min="1" step="10" value="500" />
+              </label>
+              <label>
+                Max tokens
+                <input id="max-tokens" type="number" min="1" max="4096" value="128" />
+              </label>
+            </div>
+
+            <button id="send-button" class="button primary" type="submit">
+              Send through control plane
+            </button>
+          </form>
+
+          <div id="request-result" class="result empty">
+            Submit a request to inspect its route, trace, cache state, and response.
+          </div>
+        </article>
+
+        <article class="panel architecture">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">DECISION PATH</p>
+              <h2>What the gateway controls</h2>
+            </div>
+          </div>
+          <ol class="flow">
+            <li>
+              <span>01</span>
+              <div><strong>Constrain</strong><small>Cost, latency, quality, model policy</small></div>
+            </li>
+            <li>
+              <span>02</span>
+              <div><strong>Score</strong><small>Rank only eligible, healthy providers</small></div>
+            </li>
+            <li>
+              <span>03</span>
+              <div><strong>Protect</strong><small>Rate limit, bulkhead, deadline, circuit</small></div>
+            </li>
+            <li>
+              <span>04</span>
+              <div><strong>Execute</strong><small>Cache hit or isolated provider call</small></div>
+            </li>
+            <li>
+              <span>05</span>
+              <div><strong>Observe</strong><small>Metrics, trace IDs, health, decision evidence</small></div>
+            </li>
+          </ol>
+          <a id="metrics-link" class="text-link" href="http://localhost:8080/metrics" target="_blank">
+            Open raw Prometheus metrics ↗
+          </a>
+        </article>
+      </section>
+
+      <section class="two-column">
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">LATENCY TREND</p>
+              <h2>Recent request duration</h2>
+            </div>
+            <span class="legend"><i></i> milliseconds</span>
+          </div>
+          <div id="latency-chart" class="chart empty-chart">No request samples yet.</div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">PROVIDER RUNTIME</p>
+              <h2>Calls and health</h2>
+            </div>
+          </div>
+          <div id="provider-list" class="provider-list empty-chart">No provider calls yet.</div>
+        </article>
+      </section>
+
+      <section class="panel event-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">TRACE EVENT STREAM</p>
+            <h2>Recent routing outcomes</h2>
+          </div>
+          <button id="refresh-button" class="button ghost" type="button">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Request</th>
+                <th>Provider</th>
+                <th>Policy</th>
+                <th>Cache</th>
+                <th>Latency</th>
+                <th>Fallbacks</th>
+                <th>Trace</th>
+              </tr>
+            </thead>
+            <tbody id="event-table">
+              <tr><td colspan="8" class="empty-row">No telemetry events yet.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="proof-grid">
+        <article>
+          <span>01</span>
+          <h3>Explainable routing</h3>
+          <p>Every response states the selected provider, eligible alternatives, policy, and reason.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h3>Failure isolation</h3>
+          <p>Circuit breakers, deadlines, bulkheads, and bounded fallback contain provider failures.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h3>Cost avoidance</h3>
+          <p>Exact caching and retry idempotency avoid unnecessary duplicate provider execution.</p>
+        </article>
+        <article>
+          <span>04</span>
+          <h3>Evidence first</h3>
+          <p>Prometheus counters and trace IDs support reproducible claims instead of estimates alone.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="shell">
+      <span>Adaptive AI Inference Control Plane</span>
+      <a href="https://github.com/anishmannem963/adaptive-ai-inference-control-plane">
+        View source on GitHub ↗
+      </a>
+    </footer>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
