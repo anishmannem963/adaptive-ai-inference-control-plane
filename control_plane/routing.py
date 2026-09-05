@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from control_plane.contracts import ChatCompletionRequest
 from control_plane.providers.base import InferenceProvider
-from control_plane.providers.registry import ProviderRegistry, UnknownModelError
+from control_plane.providers.registry import ProviderRegistry
 
 
 class NoEligibleProviderError(LookupError):
