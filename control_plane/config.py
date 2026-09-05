@@ -41,6 +41,10 @@ def parse_positive_int(value: str, setting: str) -> int:
     return parsed
 
 
+def parse_csv(value: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in value.split(",") if item.strip())
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     environment: str = "development"
@@ -52,6 +56,13 @@ class Settings:
     redis_url: str = ""
     cache_ttl_seconds: int = 300
     idempotency_ttl_seconds: int = 86_400
+    telemetry_service_name: str = "adaptive-ai-inference-control-plane"
+    otel_exporter_otlp_endpoint: str = ""
+    telemetry_recent_events_limit: int = 100
+    cors_allowed_origins: tuple[str, ...] = (
+        "http://localhost:5173",
+        "http://localhost:8888",
+    )
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
@@ -75,6 +86,21 @@ class Settings:
                 source.get("IDEMPOTENCY_TTL_SECONDS", "86400"),
                 "IDEMPOTENCY_TTL_SECONDS",
             ),
+            telemetry_service_name=source.get(
+                "OTEL_SERVICE_NAME",
+                "adaptive-ai-inference-control-plane",
+            ),
+            otel_exporter_otlp_endpoint=source.get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+            telemetry_recent_events_limit=parse_positive_int(
+                source.get("TELEMETRY_RECENT_EVENTS_LIMIT", "100"),
+                "TELEMETRY_RECENT_EVENTS_LIMIT",
+            ),
+            cors_allowed_origins=parse_csv(
+                source.get(
+                    "CORS_ALLOWED_ORIGINS",
+                    "http://localhost:5173,http://localhost:8888",
+                )
+            ),
         )
         settings.validate()
         return settings
@@ -84,3 +110,5 @@ class Settings:
             raise ConfigurationError("Bedrock requires a positive AWS_SESSION_BUDGET_USD")
         if self.aws_bedrock_enabled and not self.aws_model_id:
             raise ConfigurationError("Bedrock requires AWS_BEDROCK_MODEL_ID")
+        if not self.telemetry_service_name.strip():
+            raise ConfigurationError("OTEL_SERVICE_NAME must not be empty")
