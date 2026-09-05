@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Callable
 
 from control_plane.contracts import ChatCompletionRequest, ProviderResult
 from control_plane.providers.base import InferenceProvider
