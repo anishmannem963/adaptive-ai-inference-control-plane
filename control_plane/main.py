@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import asyncio
 import time
 import uuid
+from dataclasses import asdict
 
 from fastapi import FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
@@ -15,13 +15,15 @@ from control_plane.contracts import (
     ChatChoice,
     ChatCompletionRequest,
     ChatCompletionResponse,
+    ProviderResult,
     ResponseMessage,
     RoutingMetadata,
     TokenUsage,
 )
 from control_plane.providers.deterministic import default_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
-from control_plane.routing import NoEligibleProviderError, RoutingEngine
+from control_plane.reliability import ProviderCallError, ReliabilityManager
+from control_plane.routing import NoEligibleProviderError, RouteDecision, RoutingEngine
 
 
 class Health(BaseModel):
@@ -47,13 +49,26 @@ class ModelList(BaseModel):
     data: list[ModelInfo]
 
 
+class ProviderHealth(BaseModel):
+    provider: str
+    circuit: str
+    consecutive_failures: int
+    total_requests: int
+    total_successes: int
+    total_failures: int
+    average_latency_ms: float
+    available: bool
+
+
 def create_app(
     settings: Settings | None = None,
     registry: ProviderRegistry | None = None,
+    reliability: ReliabilityManager | None = None,
 ) -> FastAPI:
     config = settings or Settings.from_env()
     providers = registry or ProviderRegistry(default_providers())
     router = RoutingEngine(providers)
+    runtime = reliability or ReliabilityManager(providers.list())
     app = FastAPI(title="Adaptive AI Inference Control Plane", version=__version__)
 
     @app.get("/health/live", response_model=Health, tags=["health"])
@@ -72,6 +87,10 @@ def create_app(
             aws_session_budget_usd=str(config.aws_session_budget_usd),
             registered_providers=len(providers.list()),
         )
+
+    @app.get("/v1/providers/health", response_model=list[ProviderHealth], tags=["system"])
+    async def provider_health() -> list[ProviderHealth]:
+        return [ProviderHealth(**asdict(snapshot)) for snapshot in await runtime.health()]
 
     @app.get("/v1/models", response_model=ModelList, tags=["inference"])
     async def models() -> ModelList:
@@ -101,21 +120,45 @@ def create_app(
         response.headers["X-Request-ID"] = request_id
         if request.stream:
             raise HTTPException(status_code=501, detail="streaming is not implemented yet")
-        try:
-            decision = await router.select(request)
-        except UnknownModelError as exc:
-            raise HTTPException(status_code=404, detail=f"unknown model: {request.model}") from exc
-        except NoEligibleProviderError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
+        excluded: set[str] = set()
+        attempted: list[str] = []
+        decision: RouteDecision | None = None
+        result: ProviderResult | None = None
         started = time.perf_counter()
-        try:
-            async with asyncio.timeout(5.0):
-                result = await decision.provider.complete(request)
-        except TimeoutError as exc:
-            raise HTTPException(status_code=504, detail="provider deadline exceeded") from exc
-        latency_ms = (time.perf_counter() - started) * 1000
+        max_attempts = len(providers.list()) if request.model == "auto" else 1
 
+        for _ in range(max_attempts):
+            try:
+                decision = await router.select(request, frozenset(excluded))
+            except UnknownModelError as exc:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"unknown model: {request.model}",
+                ) from exc
+            except NoEligibleProviderError as exc:
+                if attempted:
+                    break
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+            provider_name = decision.provider.descriptor.name
+            attempted.append(provider_name)
+            try:
+                result = await runtime.invoke(decision.provider, request)
+                break
+            except ProviderCallError:
+                excluded.add(provider_name)
+
+        if decision is None or result is None:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "message": "all eligible providers failed or rejected traffic",
+                    "attempted_providers": attempted,
+                },
+            )
+
+        latency_ms = (time.perf_counter() - started) * 1000
         return ChatCompletionResponse(
             id=f"chatcmpl-{request_id}",
             model=request.model,
@@ -135,6 +178,8 @@ def create_app(
                 policy=decision.policy,
                 decision_reason=decision.reason,
                 eligible_providers=list(decision.eligible_providers),
+                attempted_providers=attempted,
+                fallback_count=len(attempted) - 1,
                 request_id=request_id,
                 simulated=decision.provider.descriptor.simulated,
                 estimated_cost_usd=result.estimated_cost_usd,
