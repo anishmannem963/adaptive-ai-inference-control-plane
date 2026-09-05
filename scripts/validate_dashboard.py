@@ -17,7 +17,11 @@ class DashboardParser(HTMLParser):
         element_id = attributes.get("id")
         if element_id:
             self.ids.append(element_id)
-        source = attributes.get("src") if tag == "script" else attributes.get("href")
+        source = None
+        if tag == "script":
+            source = attributes.get("src")
+        elif tag == "link":
+            source = attributes.get("href")
         if source and source.startswith("/"):
             self.local_assets.append(source)
 
