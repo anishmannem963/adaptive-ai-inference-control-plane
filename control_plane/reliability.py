@@ -76,10 +76,7 @@ class CircuitBreaker:
         async with self._lock:
             self._failures += 1
             self._probe_in_flight = False
-            if (
-                self._state == CircuitState.HALF_OPEN
-                or self._failures >= self.failure_threshold
-            ):
+            if self._state == CircuitState.HALF_OPEN or self._failures >= self.failure_threshold:
                 self._state = CircuitState.OPEN
                 self._opened_at = self._clock()
 
@@ -196,11 +193,7 @@ class ProviderRuntime:
     async def snapshot(self) -> HealthSnapshot:
         state, failures = await self.breaker.snapshot()
         async with self._metrics_lock:
-            average = (
-                self.total_latency_ms / self.total_requests
-                if self.total_requests
-                else 0.0
-            )
+            average = self.total_latency_ms / self.total_requests if self.total_requests else 0.0
             return HealthSnapshot(
                 provider=self.provider.descriptor.name,
                 circuit=state.value,
@@ -216,8 +209,7 @@ class ProviderRuntime:
 class ReliabilityManager:
     def __init__(self, providers: tuple[InferenceProvider, ...]) -> None:
         self._runtimes = {
-            provider.descriptor.name: ProviderRuntime(provider)
-            for provider in providers
+            provider.descriptor.name: ProviderRuntime(provider) for provider in providers
         }
 
     async def invoke(
@@ -228,7 +220,4 @@ class ReliabilityManager:
         return await self._runtimes[provider.descriptor.name].invoke(request)
 
     async def health(self) -> list[HealthSnapshot]:
-        return [
-            await runtime.snapshot()
-            for runtime in self._runtimes.values()
-        ]
+        return [await runtime.snapshot() for runtime in self._runtimes.values()]
