@@ -8,7 +8,6 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
 from threading import Lock
-from typing import Iterator
 
 from fastapi import Request
 from opentelemetry import trace
