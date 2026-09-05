@@ -132,18 +132,6 @@ class Telemetry:
         self._lock = Lock()
 
     @contextmanager
-    def request_span(self, request_id: str, model: str, policy: str) -> Iterator[Span]:
-        with self.tracer.start_as_current_span(
-            "inference.request",
-            attributes={
-                "inference.request_id": request_id,
-                "inference.model": model,
-                "inference.routing_policy": policy,
-            },
-        ) as span:
-            yield span
-
-    @contextmanager
     def provider_span(self, provider: str) -> Iterator[Span]:
         with self.tracer.start_as_current_span(
             "inference.provider",
@@ -154,6 +142,30 @@ class Telemetry:
     @staticmethod
     def trace_id(span: Span) -> str:
         return f"{span.get_span_context().trace_id:032x}"
+
+    def current_trace_id(self) -> str:
+        return self.trace_id(trace.get_current_span())
+
+    def annotate_inference(
+        self,
+        *,
+        request_id: str,
+        model: str,
+        policy: str,
+        provider: str | None = None,
+        cache_status: str | None = None,
+        fallback_count: int | None = None,
+    ) -> None:
+        span = trace.get_current_span()
+        span.set_attribute("inference.request_id", request_id)
+        span.set_attribute("inference.model", model)
+        span.set_attribute("inference.routing_policy", policy)
+        if provider is not None:
+            span.set_attribute("inference.provider", provider)
+        if cache_status is not None:
+            span.set_attribute("inference.cache_status", cache_status)
+        if fallback_count is not None:
+            span.set_attribute("inference.fallback_count", fallback_count)
 
     def observe_http(self, method: str, path: str, status: int, duration_seconds: float) -> None:
         self.http_requests.labels(method=method, path=path, status=str(status)).inc()
@@ -258,19 +270,28 @@ class HTTPMetricsMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         started = time.perf_counter()
         status = 500
-        self._telemetry.http_in_flight.inc()
-        try:
-            response = await call_next(request)
-            status = response.status_code
+        with self._telemetry.tracer.start_as_current_span(
+            "http.request",
+            attributes={
+                "http.request.method": request.method,
+                "url.path": request.url.path,
+            },
+        ) as span:
+            self._telemetry.http_in_flight.inc()
+            try:
+                response = await call_next(request)
+                status = response.status_code
+            finally:
+                self._telemetry.http_in_flight.dec()
+                self._telemetry.observe_http(
+                    request.method,
+                    request.url.path,
+                    status,
+                    time.perf_counter() - started,
+                )
+            span.set_attribute("http.response.status_code", status)
+            response.headers["X-Trace-ID"] = self._telemetry.trace_id(span)
             return response
-        finally:
-            self._telemetry.http_in_flight.dec()
-            self._telemetry.observe_http(
-                request.method,
-                request.url.path,
-                status,
-                time.perf_counter() - started,
-            )
 
 
 PROMETHEUS_CONTENT_TYPE = CONTENT_TYPE_LATEST
