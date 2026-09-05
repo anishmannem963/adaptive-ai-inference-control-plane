@@ -4,30 +4,52 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 2 implements constraint-aware adaptive routing and reproducible comparison policies over three deterministic providers. Production health signals, resilience, real model adapters, and performance claims remain pending.
+Iteration 3 adds health-aware execution, provider isolation, bounded failover, and recovery-state tracking. Aggregate reliability and recovery-time claims remain pending until the repeated fault matrix is complete.
 
 ## Implemented
 
-- typed FastAPI service with an OpenAI-compatible chat endpoint
-- provider protocol, registry, and three deterministic provider profiles
+- OpenAI-compatible typed inference gateway
+- deterministic economy, fast, and quality provider profiles
 - direct, single-provider, round-robin, lowest-cost, lowest-latency, highest-quality, and adaptive routing
-- hard per-request cost, latency, and minimum-quality constraints
-- normalized weighted adaptive scoring
-- concurrency-safe round-robin state
-- human-readable routing reasons and eligible-provider disclosure
-- request IDs, deadlines, token usage, simulated status, latency, and cost metadata
-- paid-provider fail-closed configuration
-- CI for linting, formatting, strict typing, tests, and container builds
+- hard request-level cost, latency, and quality constraints
+- explainable provider selection
+- per-provider deadlines and runtime health accounting
+- closed, open, and half-open circuit-breaker states
+- single-flight recovery probes
+- token-bucket admission limits
+- concurrency bulkheads and immediate overload backpressure
+- bounded automatic fallback for auto-routed requests
+- no silent provider substitution for explicit-model requests
+- provider health, failure, success, circuit, and latency inspection
+- AWS disabled by default with fail-closed budget configuration
 
-The deterministic providers make routing decisions reproducible without cloud charges. Their configured cost, latency, and quality values are simulation inputs, not real-provider measurements.
+## Reliability behavior
 
-## Quick start
+Auto-routed requests can try each eligible provider at most once. A failed provider is excluded before the request is rerouted. Explicit model requests never fall back to a different model.
+
+Open circuits reject traffic until their recovery interval passes. Exactly one request is then permitted as a half-open recovery probe. Success closes the circuit; failure reopens it.
+
+Inspect runtime state:
+
+~~~bash
+curl http://localhost:8080/v1/providers/health
+~~~
+
+A completion response identifies every attempted provider and the fallback count.
+
+## Run locally
 
 ~~~bash
 python3.12 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 uvicorn control_plane.main:app --reload --port 8080
+~~~
+
+Or:
+
+~~~bash
+docker compose up --build
 ~~~
 
 Adaptive request:
@@ -41,39 +63,26 @@ curl -X POST http://localhost:8080/v1/chat/completions \
     "routing": {
       "policy": "adaptive",
       "max_latency_ms": 200,
-      "min_quality": 0.75,
-      "weights": {"cost": 0.4, "latency": 0.35, "quality": 0.25}
+      "min_quality": 0.75
     }
   }'
 ~~~
 
-Supported policies:
+## Evidence policy
 
-| Policy | Selection rule |
-|---|---|
-| direct | Explicit model name |
-| single_provider | Required named provider |
-| round_robin | Next eligible provider |
-| lowest_cost | Minimum estimated request cost |
-| lowest_latency | Minimum nominal latency |
-| highest_quality | Maximum configured quality score |
-| adaptive | Minimum normalized weighted cost-latency-quality score |
-
-Hard constraints are never silently relaxed. If no provider qualifies, the gateway returns HTTP 422.
-
-## Safety and evidence policy
-
-AWS Bedrock remains disabled by default with a zero budget. No cost reduction, performance, reliability, vLLM, Bedrock, or Kubernetes claim will be published until repeated experiments produce retained machine-readable artifacts.
+Mock-provider prices, quality scores, latency, and failures are controlled simulation inputs. No production performance, cost-reduction, recovery-time, vLLM, Bedrock, or Kubernetes claim will be published until repeated experiments retain machine-readable evidence.
 
 ## Roadmap
 
 1. Safe service foundation — complete
 2. OpenAI-compatible gateway and deterministic providers — complete
 3. Adaptive constraint-aware routing — complete
-4. Reliability, caching, and observability
-5. Kubernetes, Helm, and Terraform
-6. Repeated benchmarks and fault injection
-7. Controlled cloud validation and v1.0 release
+4. Provider isolation, circuit breaking, admission control, and fallback — complete
+5. Caching and observability
+6. Local and cloud model adapters
+7. Kubernetes, Helm, and Terraform
+8. Repeated benchmarks and fault injection
+9. Controlled cloud validation and v1.0 release
 
 ## License
 
