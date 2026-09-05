@@ -13,9 +13,7 @@ class ProviderRegistry:
     def __init__(self, providers: tuple[InferenceProvider, ...]) -> None:
         self._providers = providers
         self._by_model = {
-            model: provider
-            for provider in providers
-            for model in provider.descriptor.models
+            model: provider for provider in providers for model in provider.descriptor.models
         }
         if len(self._by_model) != sum(len(provider.descriptor.models) for provider in providers):
             raise ValueError("provider model names must be unique")
