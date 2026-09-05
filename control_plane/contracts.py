@@ -99,6 +99,7 @@ class RoutingMetadata(BaseModel):
     fallback_count: int
     request_id: str
     simulated: bool
+    cache_hit: bool
     estimated_cost_usd: str
     latency_ms: float
 
