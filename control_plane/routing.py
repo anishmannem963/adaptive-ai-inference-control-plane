@@ -57,9 +57,7 @@ class RoutingEngine:
             for provider in self._registry.list()
         ]
         eligible = [
-            candidate
-            for candidate in candidates
-            if self._satisfies_constraints(candidate, request)
+            candidate for candidate in candidates if self._satisfies_constraints(candidate, request)
         ]
         if not eligible:
             raise NoEligibleProviderError("no provider satisfies all routing constraints")
@@ -70,8 +68,7 @@ class RoutingEngine:
                 (
                     candidate
                     for candidate in eligible
-                    if candidate.provider.descriptor.name
-                    == request.routing.preferred_provider
+                    if candidate.provider.descriptor.name == request.routing.preferred_provider
                 ),
                 None,
             )
@@ -106,9 +103,7 @@ class RoutingEngine:
             provider=selected.provider,
             policy=policy,
             reason=reason,
-            eligible_providers=tuple(
-                candidate.provider.descriptor.name for candidate in eligible
-            ),
+            eligible_providers=tuple(candidate.provider.descriptor.name for candidate in eligible),
             estimated_cost_usd=selected.estimated_cost_usd,
         )
 
@@ -123,10 +118,8 @@ class RoutingEngine:
         )
         descriptor = provider.descriptor
         return (
-            Decimal(prompt_tokens)
-            * Decimal(descriptor.input_cost_per_million_tokens_usd)
-            + Decimal(request.max_tokens)
-            * Decimal(descriptor.output_cost_per_million_tokens_usd)
+            Decimal(prompt_tokens) * Decimal(descriptor.input_cost_per_million_tokens_usd)
+            + Decimal(request.max_tokens) * Decimal(descriptor.output_cost_per_million_tokens_usd)
         ) / Decimal(1_000_000)
 
     def _satisfies_constraints(
@@ -160,14 +153,10 @@ class RoutingEngine:
         request: ChatCompletionRequest,
     ) -> float:
         max_cost = max(item.estimated_cost_usd for item in eligible) or Decimal(1)
-        max_latency = max(
-            item.provider.descriptor.nominal_latency_ms for item in eligible
-        ) or 1
+        max_latency = max(item.provider.descriptor.nominal_latency_ms for item in eligible) or 1
         weights = request.routing.weights
         return (
             weights.cost * float(candidate.estimated_cost_usd / max_cost)
-            + weights.latency
-            * candidate.provider.descriptor.nominal_latency_ms
-            / max_latency
+            + weights.latency * candidate.provider.descriptor.nominal_latency_ms / max_latency
             + weights.quality * (1 - candidate.provider.descriptor.quality_score)
         )
