@@ -12,13 +12,13 @@ class ConfigurationError(ValueError):
     """Configuration is unsafe or invalid."""
 
 
-def parse_bool(value: str) -> bool:
+def parse_bool(value: str, setting: str = "AWS_BEDROCK_ENABLED") -> bool:
     normalized = value.strip().lower()
     if normalized in {"1", "true", "yes", "on"}:
         return True
     if normalized in {"0", "false", "no", "off"}:
         return False
-    raise ConfigurationError("AWS_BEDROCK_ENABLED must be a boolean")
+    raise ConfigurationError(f"{setting} must be a boolean")
 
 
 def parse_budget(value: str) -> Decimal:
@@ -31,6 +31,16 @@ def parse_budget(value: str) -> Decimal:
     return budget
 
 
+def parse_positive_int(value: str, setting: str) -> int:
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ConfigurationError(f"{setting} must be an integer") from exc
+    if parsed <= 0:
+        raise ConfigurationError(f"{setting} must be positive")
+    return parsed
+
+
 @dataclass(frozen=True, slots=True)
 class Settings:
     environment: str = "development"
@@ -38,16 +48,33 @@ class Settings:
     aws_region: str = "us-east-1"
     aws_model_id: str = ""
     aws_session_budget_usd: Decimal = Decimal("0")
+    cache_enabled: bool = True
+    redis_url: str = ""
+    cache_ttl_seconds: int = 300
+    idempotency_ttl_seconds: int = 86_400
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> Settings:
         source = os.environ if env is None else env
         settings = cls(
             environment=source.get("APP_ENV", "development"),
-            aws_bedrock_enabled=parse_bool(source.get("AWS_BEDROCK_ENABLED", "false")),
+            aws_bedrock_enabled=parse_bool(
+                source.get("AWS_BEDROCK_ENABLED", "false"),
+                "AWS_BEDROCK_ENABLED",
+            ),
             aws_region=source.get("AWS_REGION", "us-east-1"),
             aws_model_id=source.get("AWS_BEDROCK_MODEL_ID", ""),
             aws_session_budget_usd=parse_budget(source.get("AWS_SESSION_BUDGET_USD", "0")),
+            cache_enabled=parse_bool(source.get("CACHE_ENABLED", "true"), "CACHE_ENABLED"),
+            redis_url=source.get("REDIS_URL", ""),
+            cache_ttl_seconds=parse_positive_int(
+                source.get("CACHE_TTL_SECONDS", "300"),
+                "CACHE_TTL_SECONDS",
+            ),
+            idempotency_ttl_seconds=parse_positive_int(
+                source.get("IDEMPOTENCY_TTL_SECONDS", "86400"),
+                "IDEMPOTENCY_TTL_SECONDS",
+            ),
         )
         settings.validate()
         return settings
