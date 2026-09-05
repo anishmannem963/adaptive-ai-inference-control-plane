@@ -90,10 +90,7 @@ def create_app(
 
     @app.get("/v1/providers/health", response_model=list[ProviderHealth], tags=["system"])
     async def provider_health() -> list[ProviderHealth]:
-        return [
-            ProviderHealth(**asdict(snapshot))
-            for snapshot in await runtime.health()
-        ]
+        return [ProviderHealth(**asdict(snapshot)) for snapshot in await runtime.health()]
 
     @app.get("/v1/models", response_model=ModelList, tags=["inference"])
     async def models() -> ModelList:
