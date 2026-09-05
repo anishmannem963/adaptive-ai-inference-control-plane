@@ -36,12 +36,15 @@ class RoutingEngine:
         self._round_robin_index = 0
         self._round_robin_lock = asyncio.Lock()
 
-    async def select(self, request: ChatCompletionRequest) -> RouteDecision:
+    async def select(
+        self,
+        request: ChatCompletionRequest,
+        excluded_providers: frozenset[str] = frozenset(),
+    ) -> RouteDecision:
         if request.model != "auto":
-            try:
-                provider = self._registry.resolve(request.model)
-            except UnknownModelError:
-                raise
+            provider = self._registry.resolve(request.model)
+            if provider.descriptor.name in excluded_providers:
+                raise NoEligibleProviderError("explicit provider is unavailable")
             candidate = Candidate(provider, self._estimate_cost(provider, request))
             self._enforce_constraints(candidate, request)
             return RouteDecision(
@@ -55,6 +58,7 @@ class RoutingEngine:
         candidates = [
             Candidate(provider, self._estimate_cost(provider, request))
             for provider in self._registry.list()
+            if provider.descriptor.name not in excluded_providers
         ]
         eligible = [
             candidate for candidate in candidates if self._satisfies_constraints(candidate, request)
