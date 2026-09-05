@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 4 adds provider-aware exact-response caching, Redis-backed retry idempotency, cache telemetry, and fail-open cache isolation. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
+Iteration 5 adds Prometheus metrics, OpenTelemetry traces, a bounded telemetry API, and a Netlify-ready live observability dashboard. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
 
 ## Implemented
 
@@ -24,7 +24,11 @@ Iteration 4 adds provider-aware exact-response caching, Redis-backed retry idemp
 - Redis-backed idempotent request replay and payload-conflict detection
 - in-memory cache fallback for zero-cost local development
 - fail-open cache behavior when Redis is unavailable
-- cache hit, miss, write, replay, conflict, and backend-error telemetry
+- Prometheus HTTP, inference, provider, latency, fallback, and estimated-cost metrics
+- OpenTelemetry request and provider spans with optional OTLP/HTTP export
+- trace IDs returned through `X-Trace-ID`
+- bounded JSON telemetry summaries and recent routing events
+- responsive static observability dashboard configured for Netlify
 - AWS disabled by default with fail-closed budget configuration
 
 ## Reliability behavior
@@ -35,14 +39,7 @@ Open circuits reject traffic until their recovery interval passes. Exactly one r
 
 Redis accelerates repeated requests but is not on the inference availability path. A cache read or write failure is recorded and the gateway continues through normal provider execution.
 
-Inspect runtime state:
-
-~~~bash
-curl http://localhost:8080/v1/providers/health
-curl http://localhost:8080/v1/cache/status
-~~~
-
-A completion response identifies every attempted provider, fallback count, and whether the selected result was served from cache. The `X-Cache` response header reports `MISS`, `HIT`, `REPLAY`, or `BYPASS` when response caching is disabled.
+A completion response identifies every attempted provider, fallback count, cache outcome, request ID, and distributed trace ID.
 
 ## Run locally
 
@@ -90,6 +87,44 @@ curl -X POST http://localhost:8080/v1/chat/completions \
 
 Repeating the same client ID, idempotency key, and payload returns the stored response. Reusing the key with a different payload returns HTTP 409. Both headers are required together.
 
+## Observability
+
+Prometheus exposition:
+
+~~~bash
+curl http://localhost:8080/metrics
+~~~
+
+Runtime JSON for the browser dashboard:
+
+~~~bash
+curl http://localhost:8080/v1/telemetry/summary
+curl http://localhost:8080/v1/providers/health
+curl http://localhost:8080/v1/cache/status
+~~~
+
+The metrics use bounded labels: provider, policy, cache status, HTTP method, known path, status, and outcome. Prompts, request IDs, client IDs, and idempotency keys are not Prometheus labels.
+
+Every HTTP request creates an OpenTelemetry span. Provider execution creates a child span. Set `OTEL_EXPORTER_OTLP_ENDPOINT` to an OTLP/HTTP trace endpoint when a collector is available; leaving it empty keeps development completely local and free.
+
+## Dashboard
+
+The static dashboard is in `dashboard/`. Run it locally after starting the API:
+
+~~~bash
+python -m http.server 8888 --directory dashboard
+~~~
+
+Then open <http://localhost:8888>. The dashboard can:
+
+- submit real inference requests through the adaptive router
+- display the selected provider, cache outcome, fallback count, response, and trace ID
+- poll current cache statistics and provider circuit health
+- visualize recent request latency and per-provider success/failure totals
+- show a bounded stream of recent routing events
+
+The root `netlify.toml` sets `dashboard` as the publish directory. No Vercel configuration is required. When the API is deployed, set its `CORS_ALLOWED_ORIGINS` value to the exact Netlify site origin.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -98,10 +133,26 @@ Repeating the same client ID, idempotency key, and payload returns the stored re
 | `REDIS_URL` | empty | Uses Redis when set; otherwise uses memory |
 | `CACHE_TTL_SECONDS` | `300` | Exact-response cache lifetime |
 | `IDEMPOTENCY_TTL_SECONDS` | `86400` | Retry record lifetime |
+| `OTEL_SERVICE_NAME` | `adaptive-ai-inference-control-plane` | Trace service identity |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Optional OTLP/HTTP trace destination |
+| `TELEMETRY_RECENT_EVENTS_LIMIT` | `100` | Maximum in-memory dashboard events |
+| `CORS_ALLOWED_ORIGINS` | local dashboard origins | Comma-separated browser origins |
+
+## Validation
+
+~~~bash
+ruff check .
+ruff format --check .
+mypy
+pytest
+python scripts/validate_dashboard.py
+~~~
+
+CI also starts a real Redis service and builds the production Docker image.
 
 ## Evidence policy
 
-Mock-provider prices, quality scores, latency, and failures are controlled simulation inputs. No production performance, cost-reduction, recovery-time, vLLM, Bedrock, or Kubernetes claim will be published until repeated experiments retain machine-readable evidence.
+Mock-provider prices, quality scores, latency, and failures are controlled simulation inputs. No production performance, cost-reduction, recovery-time, vLLM, Bedrock, Kubernetes, or cloud-provider claim will be published until repeated experiments retain machine-readable evidence.
 
 ## Roadmap
 
@@ -110,7 +161,7 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 3. Adaptive constraint-aware routing — complete
 4. Provider isolation, circuit breaking, admission control, and fallback — complete
 5. Redis caching and retry idempotency — complete
-6. Metrics, tracing, and observability dashboard
+6. Metrics, tracing, and observability dashboard — complete
 7. Local and cloud model adapters
 8. Kubernetes, Helm, and Terraform
 9. Repeated benchmarks and fault injection
