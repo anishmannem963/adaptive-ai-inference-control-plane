@@ -10,6 +10,15 @@ from fastapi import FastAPI, Header, HTTPException, Response
 from pydantic import BaseModel
 
 from control_plane import __version__
+from control_plane.cache import (
+    AsyncKeyValue,
+    CacheStatistics,
+    ExactResponseCache,
+    IdempotencyConflictError,
+    IdempotencyStore,
+    MemoryKeyValue,
+    RedisKeyValue,
+)
 from control_plane.config import Settings
 from control_plane.contracts import (
     ChatChoice,
@@ -60,15 +69,52 @@ class ProviderHealth(BaseModel):
     available: bool
 
 
+class CacheStatus(BaseModel):
+    enabled: bool
+    backend: str
+    ttl_seconds: int
+    idempotency_ttl_seconds: int
+    hits: int
+    misses: int
+    writes: int
+    backend_errors: int
+    idempotent_replays: int
+    idempotency_conflicts: int
+
+
 def create_app(
     settings: Settings | None = None,
     registry: ProviderRegistry | None = None,
     reliability: ReliabilityManager | None = None,
+    cache_backend: AsyncKeyValue | None = None,
 ) -> FastAPI:
     config = settings or Settings.from_env()
     providers = registry or ProviderRegistry(default_providers())
     router = RoutingEngine(providers)
     runtime = reliability or ReliabilityManager(providers.list())
+
+    selected_backend: AsyncKeyValue
+    if cache_backend is not None:
+        selected_backend = cache_backend
+        cache_backend_name = "injected"
+    elif config.redis_url:
+        selected_backend = RedisKeyValue(config.redis_url)
+        cache_backend_name = "redis"
+    else:
+        selected_backend = MemoryKeyValue()
+        cache_backend_name = "memory"
+
+    cache_statistics = CacheStatistics()
+    response_cache = ExactResponseCache(
+        selected_backend,
+        config.cache_ttl_seconds,
+        cache_statistics,
+    )
+    idempotency_store = IdempotencyStore(
+        selected_backend,
+        config.idempotency_ttl_seconds,
+        cache_statistics,
+    )
     app = FastAPI(title="Adaptive AI Inference Control Plane", version=__version__)
 
     @app.get("/health/live", response_model=Health, tags=["health"])
@@ -91,6 +137,16 @@ def create_app(
     @app.get("/v1/providers/health", response_model=list[ProviderHealth], tags=["system"])
     async def provider_health() -> list[ProviderHealth]:
         return [ProviderHealth(**asdict(snapshot)) for snapshot in await runtime.health()]
+
+    @app.get("/v1/cache/status", response_model=CacheStatus, tags=["system"])
+    async def cache_status() -> CacheStatus:
+        return CacheStatus(
+            enabled=config.cache_enabled,
+            backend=cache_backend_name,
+            ttl_seconds=config.cache_ttl_seconds,
+            idempotency_ttl_seconds=config.idempotency_ttl_seconds,
+            **asdict(cache_statistics),
+        )
 
     @app.get("/v1/models", response_model=ModelList, tags=["inference"])
     async def models() -> ModelList:
@@ -115,16 +171,44 @@ def create_app(
         request: ChatCompletionRequest,
         response: Response,
         x_request_id: str | None = Header(default=None, alias="X-Request-ID"),
+        x_client_id: str | None = Header(default=None, alias="X-Client-ID"),
+        x_idempotency_key: str | None = Header(default=None, alias="X-Idempotency-Key"),
     ) -> ChatCompletionResponse:
         request_id = x_request_id or str(uuid.uuid4())
         response.headers["X-Request-ID"] = request_id
         if request.stream:
             raise HTTPException(status_code=501, detail="streaming is not implemented yet")
 
+        if (x_client_id is None) != (x_idempotency_key is None):
+            raise HTTPException(
+                status_code=400,
+                detail="X-Client-ID and X-Idempotency-Key must be supplied together",
+            )
+        if x_client_id is not None and x_idempotency_key is not None:
+            if not x_client_id.strip() or not x_idempotency_key.strip():
+                raise HTTPException(
+                    status_code=400,
+                    detail="idempotency headers must not be empty",
+                )
+            try:
+                replayed = await idempotency_store.replay(
+                    x_client_id,
+                    x_idempotency_key,
+                    request,
+                )
+            except IdempotencyConflictError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            if replayed is not None:
+                response.headers["X-Request-ID"] = replayed.routing.request_id
+                response.headers["X-Idempotent-Replay"] = "true"
+                response.headers["X-Cache"] = "REPLAY"
+                return replayed
+
         excluded: set[str] = set()
         attempted: list[str] = []
         decision: RouteDecision | None = None
         result: ProviderResult | None = None
+        cache_hit = False
         started = time.perf_counter()
         max_attempts = len(providers.list()) if request.model == "auto" else 1
 
@@ -143,8 +227,15 @@ def create_app(
 
             provider_name = decision.provider.descriptor.name
             attempted.append(provider_name)
+            if config.cache_enabled:
+                result = await response_cache.get(request, provider_name)
+                if result is not None:
+                    cache_hit = True
+                    break
             try:
                 result = await runtime.invoke(decision.provider, request)
+                if config.cache_enabled:
+                    await response_cache.set(request, provider_name, result)
                 break
             except ProviderCallError:
                 excluded.add(provider_name)
@@ -159,7 +250,7 @@ def create_app(
             )
 
         latency_ms = (time.perf_counter() - started) * 1000
-        return ChatCompletionResponse(
+        completion = ChatCompletionResponse(
             id=f"chatcmpl-{request_id}",
             model=request.model,
             choices=[
@@ -182,10 +273,20 @@ def create_app(
                 fallback_count=len(attempted) - 1,
                 request_id=request_id,
                 simulated=decision.provider.descriptor.simulated,
+                cache_hit=cache_hit,
                 estimated_cost_usd=result.estimated_cost_usd,
                 latency_ms=round(latency_ms, 3),
             ),
         )
+        if x_client_id is not None and x_idempotency_key is not None:
+            await idempotency_store.store(
+                x_client_id,
+                x_idempotency_key,
+                request,
+                completion,
+            )
+        response.headers["X-Cache"] = "HIT" if cache_hit else "MISS"
+        return completion
 
     return app
 
