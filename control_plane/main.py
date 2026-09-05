@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict
 
 from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from control_plane import __version__
@@ -33,6 +34,7 @@ from control_plane.providers.deterministic import default_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
 from control_plane.reliability import ProviderCallError, ReliabilityManager
 from control_plane.routing import NoEligibleProviderError, RouteDecision, RoutingEngine
+from control_plane.telemetry import HTTPMetricsMiddleware, PROMETHEUS_CONTENT_TYPE, Telemetry
 
 
 class Health(BaseModel):
