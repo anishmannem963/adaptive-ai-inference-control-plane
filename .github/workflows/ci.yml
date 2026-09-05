@@ -32,4 +32,5 @@ jobs:
       - run: ruff format --check .
       - run: mypy
       - run: pytest
+      - run: python scripts/validate_dashboard.py
       - run: docker build -t adaptive-ai-inference-control-plane:ci .
