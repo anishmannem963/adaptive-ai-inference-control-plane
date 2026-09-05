@@ -47,7 +47,7 @@ class MemoryKeyValue:
 
 class RedisKeyValue:
     def __init__(self, url: str) -> None:
-        self._client = redis.from_url(url, decode_responses=True)
+        self._client: redis.Redis = redis.from_url(  # type: ignore[no-untyped-call]\n            url, decode_responses=True\n        )
 
     async def get(self, key: str) -> str | None:
         value = await self._client.get(key)
