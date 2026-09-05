@@ -146,6 +146,8 @@ def test_cache_can_be_disabled_without_disabling_inference() -> None:
 
     assert first.status_code == 200
     assert second.status_code == 200
+    assert first.headers["X-Cache"] == "BYPASS"
+    assert second.headers["X-Cache"] == "BYPASS"
     assert provider.calls == 2
     assert client.get("/v1/cache/status").json()["enabled"] is False
 
