@@ -54,9 +54,7 @@ def test_baseline_policies_are_deterministic(policy: str, expected: str) -> None
 def test_round_robin_rotates_over_eligible_providers() -> None:
     router = engine()
 
-    decisions = [
-        asyncio.run(router.select(request(policy="round_robin"))) for _ in range(4)
-    ]
+    decisions = [asyncio.run(router.select(request(policy="round_robin"))) for _ in range(4)]
 
     assert [decision.provider.descriptor.name for decision in decisions] == [
         "mock-economy",
@@ -67,18 +65,14 @@ def test_round_robin_rotates_over_eligible_providers() -> None:
 
 
 def test_latency_constraint_filters_slow_providers() -> None:
-    decision = asyncio.run(
-        engine().select(request(policy="highest_quality", max_latency_ms=100))
-    )
+    decision = asyncio.run(engine().select(request(policy="highest_quality", max_latency_ms=100)))
 
     assert decision.provider.descriptor.name == "mock-fast"
     assert decision.eligible_providers == ("mock-fast",)
 
 
 def test_quality_constraint_filters_lower_quality_providers() -> None:
-    decision = asyncio.run(
-        engine().select(request(policy="lowest_cost", min_quality=0.90))
-    )
+    decision = asyncio.run(engine().select(request(policy="lowest_cost", min_quality=0.90)))
 
     assert decision.provider.descriptor.name == "mock-quality"
 
