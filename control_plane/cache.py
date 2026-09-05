@@ -166,7 +166,11 @@ class IdempotencyStore:
         return f"idempotency:v1:{hashlib.sha256(raw).hexdigest()}"
 
     def _fingerprint(self, request: ChatCompletionRequest) -> str:
-        material = json.dumps(\n            request.model_dump(mode="json"),\n            sort_keys=True,\n            separators=(",", ":"),\n        )
+        material = json.dumps(
+            request.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
         return hashlib.sha256(material.encode()).hexdigest()
 
     async def replay(
