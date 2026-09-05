@@ -4,20 +4,22 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 1 adds an OpenAI-compatible chat boundary and three deterministic providers. Adaptive routing, production reliability, cloud adapters, and performance claims remain intentionally pending.
+Iteration 2 implements constraint-aware adaptive routing and reproducible comparison policies over three deterministic providers. Production health signals, resilience, real model adapters, and performance claims remain pending.
 
 ## Implemented
 
-- typed FastAPI service and OpenAPI documentation
-- OpenAI-compatible non-streaming chat request and response contracts
-- explicit provider protocol and model registry
-- economy, fast, and quality-oriented deterministic providers
-- request ID propagation and provider attribution
-- bounded provider deadline
+- typed FastAPI service with an OpenAI-compatible chat endpoint
+- provider protocol, registry, and three deterministic provider profiles
+- direct, single-provider, round-robin, lowest-cost, lowest-latency, highest-quality, and adaptive routing
+- hard per-request cost, latency, and minimum-quality constraints
+- normalized weighted adaptive scoring
+- concurrency-safe round-robin state
+- human-readable routing reasons and eligible-provider disclosure
+- request IDs, deadlines, token usage, simulated status, latency, and cost metadata
 - paid-provider fail-closed configuration
-- CI checks for linting, formatting, typing, tests, and container builds
+- CI for linting, formatting, strict typing, tests, and container builds
 
-The mock providers expose controlled price, latency, and quality profiles. They enable reproducible routing and fault experiments; they are not real model inference.
+The deterministic providers make routing decisions reproducible without cloud charges. Their configured cost, latency, and quality values are simulation inputs, not real-provider measurements.
 
 ## Quick start
 
@@ -28,55 +30,46 @@ pip install -e ".[dev]"
 uvicorn control_plane.main:app --reload --port 8080
 ~~~
 
-Or run:
-
-~~~bash
-docker compose up --build
-~~~
-
-List models:
-
-~~~bash
-curl http://localhost:8080/v1/models
-~~~
-
-Send a completion:
+Adaptive request:
 
 ~~~bash
 curl -X POST http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "X-Request-ID: demo-1" \
-  -d '{"model":"mock-fast","messages":[{"role":"user","content":"Explain quorum."}]}'
+  -d '{
+    "model": "auto",
+    "messages": [{"role": "user", "content": "Explain quorum."}],
+    "routing": {
+      "policy": "adaptive",
+      "max_latency_ms": 200,
+      "min_quality": 0.75,
+      "weights": {"cost": 0.4, "latency": 0.35, "quality": 0.25}
+    }
+  }'
 ~~~
 
-Additional endpoints:
+Supported policies:
 
-- /health/live
-- /health/ready
-- /v1/system/status
-- /docs
+| Policy | Selection rule |
+|---|---|
+| direct | Explicit model name |
+| single_provider | Required named provider |
+| round_robin | Next eligible provider |
+| lowest_cost | Minimum estimated request cost |
+| lowest_latency | Minimum nominal latency |
+| highest_quality | Maximum configured quality score |
+| adaptive | Minimum normalized weighted cost-latency-quality score |
 
-## Safety
+Hard constraints are never silently relaxed. If no provider qualifies, the gateway returns HTTP 422.
 
-The default mode is free: AWS Bedrock is disabled, its session budget is zero, and no credentials are required. Enabling Bedrock without an explicit model ID and positive budget prevents application startup.
+## Safety and evidence policy
 
-## Planned modes
-
-| Mode | Backends | Cost |
-|---|---|---:|
-| Deterministic | Mock providers | Free |
-| Local | Ollama on Apple Silicon; vLLM on Linux GPU | Free when hardware is available |
-| Cloud validation | AWS Bedrock and temporary remote vLLM | Explicitly budgeted and opt-in |
-
-## Evidence policy
-
-No cost reduction, performance, reliability, vLLM, Bedrock, or Kubernetes deployment claim will be published until repeated experiments produce retained machine-readable artifacts.
+AWS Bedrock remains disabled by default with a zero budget. No cost reduction, performance, reliability, vLLM, Bedrock, or Kubernetes claim will be published until repeated experiments produce retained machine-readable artifacts.
 
 ## Roadmap
 
 1. Safe service foundation — complete
 2. OpenAI-compatible gateway and deterministic providers — complete
-3. Adaptive constraint-aware routing
+3. Adaptive constraint-aware routing — complete
 4. Reliability, caching, and observability
 5. Kubernetes, Helm, and Terraform
 6. Repeated benchmarks and fault injection

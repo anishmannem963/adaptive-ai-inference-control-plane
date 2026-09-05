@@ -21,6 +21,7 @@ from control_plane.contracts import (
 )
 from control_plane.providers.deterministic import default_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
+from control_plane.routing import NoEligibleProviderError, RoutingEngine
 
 
 class Health(BaseModel):
@@ -52,6 +53,7 @@ def create_app(
 ) -> FastAPI:
     config = settings or Settings.from_env()
     providers = registry or ProviderRegistry(default_providers())
+    router = RoutingEngine(providers)
     app = FastAPI(title="Adaptive AI Inference Control Plane", version=__version__)
 
     @app.get("/health/live", response_model=Health, tags=["health"])
@@ -100,14 +102,16 @@ def create_app(
         if request.stream:
             raise HTTPException(status_code=501, detail="streaming is not implemented yet")
         try:
-            provider = providers.resolve(request.model)
+            decision = await router.select(request)
         except UnknownModelError as exc:
             raise HTTPException(status_code=404, detail=f"unknown model: {request.model}") from exc
+        except NoEligibleProviderError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
 
         started = time.perf_counter()
         try:
             async with asyncio.timeout(5.0):
-                result = await provider.complete(request)
+                result = await decision.provider.complete(request)
         except TimeoutError as exc:
             raise HTTPException(status_code=504, detail="provider deadline exceeded") from exc
         latency_ms = (time.perf_counter() - started) * 1000
@@ -127,9 +131,12 @@ def create_app(
                 total_tokens=result.prompt_tokens + result.completion_tokens,
             ),
             routing=RoutingMetadata(
-                provider=provider.descriptor.name,
+                provider=decision.provider.descriptor.name,
+                policy=decision.policy,
+                decision_reason=decision.reason,
+                eligible_providers=list(decision.eligible_providers),
                 request_id=request_id,
-                simulated=provider.descriptor.simulated,
+                simulated=decision.provider.descriptor.simulated,
                 estimated_cost_usd=result.estimated_cost_usd,
                 latency_ms=round(latency_ms, 3),
             ),
