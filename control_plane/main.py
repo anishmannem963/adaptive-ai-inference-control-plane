@@ -34,7 +34,7 @@ from control_plane.providers.deterministic import default_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
 from control_plane.reliability import ProviderCallError, ReliabilityManager
 from control_plane.routing import NoEligibleProviderError, RouteDecision, RoutingEngine
-from control_plane.telemetry import HTTPMetricsMiddleware, PROMETHEUS_CONTENT_TYPE, Telemetry
+from control_plane.telemetry import PROMETHEUS_CONTENT_TYPE, HTTPMetricsMiddleware, Telemetry
 
 
 class Health(BaseModel):
