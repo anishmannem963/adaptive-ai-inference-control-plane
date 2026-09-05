@@ -1,0 +1,12 @@
+services:
+  gateway:
+    build: .
+    environment:
+      APP_ENV: development
+      AWS_BEDROCK_ENABLED: "false"
+      AWS_SESSION_BUDGET_USD: "0"
+    ports: ["8080:8080"]
+    deploy:
+      resources:
+        limits:
+          memory: 384M
