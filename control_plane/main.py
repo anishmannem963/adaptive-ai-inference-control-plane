@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict
 
 from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from control_plane import __version__
@@ -33,6 +34,7 @@ from control_plane.providers.deterministic import default_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
 from control_plane.reliability import ProviderCallError, ReliabilityManager
 from control_plane.routing import NoEligibleProviderError, RouteDecision, RoutingEngine
+from control_plane.telemetry import PROMETHEUS_CONTENT_TYPE, HTTPMetricsMiddleware, Telemetry
 
 
 class Health(BaseModel):
@@ -115,7 +117,26 @@ def create_app(
         config.idempotency_ttl_seconds,
         cache_statistics,
     )
+    telemetry = Telemetry(
+        service_name=config.telemetry_service_name,
+        otlp_endpoint=config.otel_exporter_otlp_endpoint,
+        recent_event_limit=config.telemetry_recent_events_limit,
+    )
     app = FastAPI(title="Adaptive AI Inference Control Plane", version=__version__)
+    app.add_middleware(HTTPMetricsMiddleware, telemetry=telemetry)
+    if config.cors_allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=list(config.cors_allowed_origins),
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=[
+                "Content-Type",
+                "X-Client-ID",
+                "X-Idempotency-Key",
+                "X-Request-ID",
+            ],
+            expose_headers=["X-Cache", "X-Idempotent-Replay", "X-Request-ID", "X-Trace-ID"],
+        )
 
     @app.get("/health/live", response_model=Health, tags=["health"])
     async def live() -> Health:
@@ -148,6 +169,17 @@ def create_app(
             **asdict(cache_statistics),
         )
 
+    @app.get("/metrics", include_in_schema=False)
+    async def metrics() -> Response:
+        return Response(
+            content=telemetry.prometheus_payload(),
+            headers={"Content-Type": PROMETHEUS_CONTENT_TYPE},
+        )
+
+    @app.get("/v1/telemetry/summary", tags=["system"])
+    async def telemetry_summary() -> dict[str, object]:
+        return telemetry.summary()
+
     @app.get("/v1/models", response_model=ModelList, tags=["inference"])
     async def models() -> ModelList:
         return ModelList(
@@ -176,6 +208,13 @@ def create_app(
     ) -> ChatCompletionResponse:
         request_id = x_request_id or str(uuid.uuid4())
         response.headers["X-Request-ID"] = request_id
+        started = time.perf_counter()
+        telemetry.annotate_inference(
+            request_id=request_id,
+            model=request.model,
+            policy=request.routing.policy,
+        )
+        trace_id = telemetry.current_trace_id()
         if request.stream:
             raise HTTPException(status_code=501, detail="streaming is not implemented yet")
 
@@ -199,9 +238,27 @@ def create_app(
             except IdempotencyConflictError as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc
             if replayed is not None:
+                latency_ms = (time.perf_counter() - started) * 1000
                 response.headers["X-Request-ID"] = replayed.routing.request_id
                 response.headers["X-Idempotent-Replay"] = "true"
                 response.headers["X-Cache"] = "REPLAY"
+                telemetry.annotate_inference(
+                    request_id=replayed.routing.request_id,
+                    model=replayed.model,
+                    policy=replayed.routing.policy,
+                    provider=replayed.routing.provider,
+                    cache_status="REPLAY",
+                    fallback_count=replayed.routing.fallback_count,
+                )
+                telemetry.record_inference(
+                    request_id=replayed.routing.request_id,
+                    trace_id=trace_id,
+                    provider=replayed.routing.provider,
+                    policy=replayed.routing.policy,
+                    cache_status="REPLAY",
+                    latency_ms=latency_ms,
+                    fallback_count=replayed.routing.fallback_count,
+                )
                 return replayed
 
         excluded: set[str] = set()
@@ -232,13 +289,27 @@ def create_app(
                 if result is not None:
                     cache_hit = True
                     break
+            provider_started = time.perf_counter()
             try:
-                result = await runtime.invoke(decision.provider, request)
+                with telemetry.provider_span(provider_name):
+                    result = await runtime.invoke(decision.provider, request)
+            except ProviderCallError:
+                telemetry.record_provider_call(
+                    provider_name,
+                    "failure",
+                    (time.perf_counter() - provider_started) * 1000,
+                )
+                excluded.add(provider_name)
+            else:
+                telemetry.record_provider_call(
+                    provider_name,
+                    "success",
+                    (time.perf_counter() - provider_started) * 1000,
+                    result.estimated_cost_usd,
+                )
                 if config.cache_enabled:
                     await response_cache.set(request, provider_name, result)
                 break
-            except ProviderCallError:
-                excluded.add(provider_name)
 
         if decision is None or result is None:
             raise HTTPException(
@@ -286,9 +357,27 @@ def create_app(
                 completion,
             )
         if config.cache_enabled:
-            response.headers["X-Cache"] = "HIT" if cache_hit else "MISS"
+            cache_status = "HIT" if cache_hit else "MISS"
         else:
-            response.headers["X-Cache"] = "BYPASS"
+            cache_status = "BYPASS"
+        response.headers["X-Cache"] = cache_status
+        telemetry.annotate_inference(
+            request_id=request_id,
+            model=request.model,
+            policy=decision.policy,
+            provider=decision.provider.descriptor.name,
+            cache_status=cache_status,
+            fallback_count=len(attempted) - 1,
+        )
+        telemetry.record_inference(
+            request_id=request_id,
+            trace_id=trace_id,
+            provider=decision.provider.descriptor.name,
+            policy=decision.policy,
+            cache_status=cache_status,
+            latency_ms=latency_ms,
+            fallback_count=len(attempted) - 1,
+        )
         return completion
 
     return app
