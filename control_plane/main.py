@@ -285,7 +285,10 @@ def create_app(
                 request,
                 completion,
             )
-        response.headers["X-Cache"] = "HIT" if cache_hit else "MISS"
+        if config.cache_enabled:
+            response.headers["X-Cache"] = "HIT" if cache_hit else "MISS"
+        else:
+            response.headers["X-Cache"] = "BYPASS"
         return completion
 
     return app
