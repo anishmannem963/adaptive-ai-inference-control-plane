@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 5 adds Prometheus metrics, OpenTelemetry traces, a bounded telemetry API, and a Netlify-ready live observability dashboard. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
+Iteration 6 adds opt-in adapters for local Ollama inference and Amazon Bedrock Converse, including exact Bedrock token counting and a concurrency-safe session budget. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
 
 ## Implemented
 
@@ -29,6 +29,10 @@ Iteration 5 adds Prometheus metrics, OpenTelemetry traces, a bounded telemetry A
 - trace IDs returned through `X-Trace-ID`
 - bounded JSON telemetry summaries and recent routing events
 - responsive static observability dashboard configured for Netlify
+- local Ollama chat inference through the native `/api/chat` API
+- Amazon Bedrock inference through the model-independent Converse API
+- exact Bedrock preflight token counting and concurrency-safe budget reservations
+- configuration-driven mock, local, and cloud provider registration
 - AWS disabled by default with fail-closed budget configuration
 
 ## Reliability behavior
@@ -125,10 +129,48 @@ Then open <http://localhost:8888>. The dashboard can:
 
 The root `netlify.toml` sets `dashboard` as the publish directory. No Vercel configuration is required. When the API is deployed, set its `CORS_ALLOWED_ORIGINS` value to the exact Netlify site origin.
 
+## Local Ollama provider
+
+Install Ollama, pull a model that fits the machine, and start its local service:
+
+~~~bash
+ollama pull qwen2.5:0.5b
+OLLAMA_ENABLED=true uvicorn control_plane.main:app --reload --port 8080
+~~~
+
+The public gateway model name is `ollama-local`; `OLLAMA_MODEL` identifies the actual model loaded by Ollama. The adapter sends the complete conversation to Ollama's native chat endpoint and reports its real prompt and completion token counts. It has a configured estimated cost of zero.
+
+## Amazon Bedrock provider
+
+Bedrock remains disabled unless every safety setting is supplied. The adapter uses Bedrock `CountTokens` before inference, reserves the maximum request cost atomically, invokes the unified Converse API, and settles the reservation against returned usage.
+
+~~~bash
+AWS_BEDROCK_ENABLED=true \
+AWS_REGION=us-east-1 \
+AWS_BEDROCK_MODEL_ID='<approved-model-or-inference-profile-id>' \
+AWS_BEDROCK_INPUT_COST_PER_MILLION_TOKENS_USD='<current-price>' \
+AWS_BEDROCK_OUTPUT_COST_PER_MILLION_TOKENS_USD='<current-price>' \
+AWS_SESSION_BUDGET_USD=5 \
+uvicorn control_plane.main:app --port 8080
+~~~
+
+Use the public model alias `bedrock-primary`. Credentials are resolved by the standard AWS SDK credential chain and must never be committed. The session guard is a process-level experimental control, not a replacement for AWS Budgets, account quotas, or billing alerts. Prices are explicit configuration because they vary by model and region and must be verified immediately before a paid experiment.
+
 ## Configuration
 
 | Variable | Default | Purpose |
 |---|---:|---|
+| `MOCK_PROVIDERS_ENABLED` | `true` | Keeps deterministic providers available for free tests |
+| `OLLAMA_ENABLED` | `false` | Registers the real local Ollama provider |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama HTTP service |
+| `OLLAMA_MODEL` | `qwen2.5:0.5b` | Locally installed Ollama model |
+| `OLLAMA_MODEL_ALIAS` | `ollama-local` | Stable gateway-facing model name |
+| `AWS_BEDROCK_ENABLED` | `false` | Registers the real Bedrock provider |
+| `AWS_BEDROCK_MODEL_ID` | empty | Approved Bedrock model or inference profile ID |
+| `AWS_BEDROCK_MODEL_ALIAS` | `bedrock-primary` | Stable gateway-facing model name |
+| `AWS_BEDROCK_INPUT_COST_PER_MILLION_TOKENS_USD` | `0` | Explicit current input price; must be positive when enabled |
+| `AWS_BEDROCK_OUTPUT_COST_PER_MILLION_TOKENS_USD` | `0` | Explicit current output price; must be positive when enabled |
+| `AWS_SESSION_BUDGET_USD` | `0` | Fail-closed per-process experimental spending ceiling |
 | `CACHE_ENABLED` | `true` | Enables exact-response caching |
 | `REDIS_URL` | empty | Uses Redis when set; otherwise uses memory |
 | `CACHE_TTL_SECONDS` | `300` | Exact-response cache lifetime |
@@ -162,7 +204,7 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 4. Provider isolation, circuit breaking, admission control, and fallback — complete
 5. Redis caching and retry idempotency — complete
 6. Metrics, tracing, and observability dashboard — complete
-7. Local and cloud model adapters
+7. Local and cloud model adapters — complete in code; paid cloud validation pending
 8. Kubernetes, Helm, and Terraform
 9. Repeated benchmarks and fault injection
 10. Controlled cloud validation and v1.0 release

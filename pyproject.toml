@@ -7,7 +7,9 @@ name = "adaptive-ai-inference-control-plane"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+  "boto3>=1.40,<2",
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
   "opentelemetry-api>=1.31,<2",
   "opentelemetry-exporter-otlp-proto-http>=1.31,<2",
   "opentelemetry-sdk>=1.31,<2",
@@ -18,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["httpx>=0.28,<1", "mypy>=1.15,<2", "pytest>=8.3,<9", "ruff>=0.11,<1"]
+dev = ["mypy>=1.15,<2", "pytest>=8.3,<9", "ruff>=0.11,<1"]
 
 [tool.setuptools.packages.find]
 include = ["control_plane*"]

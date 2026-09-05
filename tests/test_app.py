@@ -9,6 +9,7 @@ from control_plane.main import create_app
 
 def test_cloud_is_disabled_by_default() -> None:
     settings = Settings.from_env({})
+    assert settings.ollama_enabled is False
     assert settings.aws_bedrock_enabled is False
     assert settings.aws_session_budget_usd == Decimal("0")
 
@@ -30,6 +31,38 @@ def test_bedrock_requires_model() -> None:
             {
                 "AWS_BEDROCK_ENABLED": "true",
                 "AWS_SESSION_BUDGET_USD": "5",
+                "AWS_BEDROCK_INPUT_COST_PER_MILLION_TOKENS_USD": "1",
+                "AWS_BEDROCK_OUTPUT_COST_PER_MILLION_TOKENS_USD": "2",
+            }
+        )
+
+
+def test_bedrock_requires_explicit_positive_prices() -> None:
+    with pytest.raises(ConfigurationError, match="token prices"):
+        Settings.from_env(
+            {
+                "AWS_BEDROCK_ENABLED": "true",
+                "AWS_BEDROCK_MODEL_ID": "model",
+                "AWS_SESSION_BUDGET_USD": "5",
+            }
+        )
+
+
+def test_ollama_configuration_is_opt_in_and_validated() -> None:
+    settings = Settings.from_env(
+        {
+            "OLLAMA_ENABLED": "true",
+            "OLLAMA_BASE_URL": "http://localhost:11434",
+            "OLLAMA_MODEL": "qwen2.5:0.5b",
+        }
+    )
+    assert settings.ollama_enabled is True
+
+    with pytest.raises(ConfigurationError, match="HTTP"):
+        Settings.from_env(
+            {
+                "OLLAMA_ENABLED": "true",
+                "OLLAMA_BASE_URL": "localhost:11434",
             }
         )
 

@@ -30,7 +30,7 @@ from control_plane.contracts import (
     RoutingMetadata,
     TokenUsage,
 )
-from control_plane.providers.deterministic import default_providers
+from control_plane.providers.factory import build_providers
 from control_plane.providers.registry import ProviderRegistry, UnknownModelError
 from control_plane.reliability import ProviderCallError, ReliabilityManager
 from control_plane.routing import NoEligibleProviderError, RouteDecision, RoutingEngine
@@ -44,6 +44,8 @@ class Health(BaseModel):
 
 class Status(BaseModel):
     environment: str
+    mock_providers_enabled: bool
+    ollama_enabled: bool
     aws_bedrock_enabled: bool
     aws_session_budget_usd: str
     registered_providers: int
@@ -91,7 +93,7 @@ def create_app(
     cache_backend: AsyncKeyValue | None = None,
 ) -> FastAPI:
     config = settings or Settings.from_env()
-    providers = registry or ProviderRegistry(default_providers())
+    providers = registry or ProviderRegistry(build_providers(config))
     router = RoutingEngine(providers)
     runtime = reliability or ReliabilityManager(providers.list())
 
@@ -150,6 +152,8 @@ def create_app(
     async def status() -> Status:
         return Status(
             environment=config.environment,
+            mock_providers_enabled=config.mock_providers_enabled,
+            ollama_enabled=config.ollama_enabled,
             aws_bedrock_enabled=config.aws_bedrock_enabled,
             aws_session_budget_usd=str(config.aws_session_budget_usd),
             registered_providers=len(providers.list()),
