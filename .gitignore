@@ -12,6 +12,7 @@ build/
 .terraform/
 *.tfstate
 *.tfstate.*
+artifacts/
 *.tfplan
 *.tfvars
 !*.tfvars.example

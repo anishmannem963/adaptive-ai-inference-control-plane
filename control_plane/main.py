@@ -95,7 +95,11 @@ def create_app(
     config = settings or Settings.from_env()
     providers = registry or ProviderRegistry(build_providers(config))
     router = RoutingEngine(providers)
-    runtime = reliability or ReliabilityManager(providers.list())
+    runtime = reliability or ReliabilityManager(
+        providers.list(),
+        rate_per_second=config.provider_rate_per_second,
+        burst_capacity=config.provider_burst_capacity,
+    )
 
     selected_backend: AsyncKeyValue
     if cache_backend is not None:
