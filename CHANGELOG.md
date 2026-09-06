@@ -7,9 +7,17 @@ first public release.
 
 ### Added
 
+- Zero-cost Render Blueprint for the FastAPI gateway and volatile Key Value cache.
+- Completely free hosted-demo runbook for the existing Netlify dashboard.
+- Deployment tests that prevent paid-provider activation or non-free Render plans.
 - Guarded free Cloud Run and minimal-paid AWS Bedrock validation clients.
 - Permanent provenance summary for the Iteration 9 hosted evaluation.
 - Release-candidate documentation and contribution guidance.
+
+### Changed
+
+- The production container now honors a hosting platform's assigned `PORT` while retaining
+  port 8080 as its local default.
 
 ## 0.1.0 - Development baseline
 
@@ -23,4 +31,3 @@ first public release.
 - Reproducible HTTP load and controlled provider-fault matrices.
 
 Version `1.0.0` remains intentionally unreleased until controlled cloud validation is complete.
-
