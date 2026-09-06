@@ -54,14 +54,63 @@ def summarize_cloud_samples(
 async def validate_free_gateway(
     client: httpx.AsyncClient,
     requests: int = 25,
+    *,
+    expected_cache_backend: str | None = None,
+    allowed_origin: str | None = None,
 ) -> dict[str, object]:
-    """Validate a deployment using only its deterministic mock provider."""
+    """Validate a deployment without permitting a real or paid provider."""
     health = await client.get("/health/ready")
     health.raise_for_status()
-    status = await client.get("/v1/system/status")
-    status.raise_for_status()
-    if not status.json().get("mock_providers_enabled"):
+
+    status_response = await client.get("/v1/system/status")
+    status_response.raise_for_status()
+    status = status_response.json()
+    if not status.get("mock_providers_enabled"):
         raise RuntimeError("free validation requires mock providers")
+    if status.get("ollama_enabled") or status.get("aws_bedrock_enabled"):
+        raise RuntimeError("free validation forbids Ollama and AWS Bedrock")
+    if Decimal(status.get("aws_session_budget_usd", "0")) != 0:
+        raise RuntimeError("free validation requires a zero Bedrock session budget")
+
+    models_response = await client.get("/v1/models")
+    models_response.raise_for_status()
+    models = models_response.json().get("data", [])
+    if not models or any(not model.get("simulated") for model in models):
+        raise RuntimeError("free validation requires every registered model to be simulated")
+
+    deployment_checks: dict[str, object] = {
+        "ready": True,
+        "mock_providers_enabled": True,
+        "ollama_enabled": False,
+        "aws_bedrock_enabled": False,
+        "aws_session_budget_usd": "0",
+        "all_models_simulated": True,
+    }
+
+    if expected_cache_backend is not None:
+        cache_response = await client.get("/v1/cache/status")
+        cache_response.raise_for_status()
+        actual_backend = cache_response.json().get("backend")
+        if actual_backend != expected_cache_backend:
+            raise RuntimeError(
+                f"expected {expected_cache_backend} cache backend, received {actual_backend}"
+            )
+        deployment_checks["cache_backend"] = actual_backend
+
+    if allowed_origin is not None:
+        cors_response = await client.options(
+            "/v1/chat/completions",
+            headers={
+                "Origin": allowed_origin,
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type,x-request-id",
+            },
+        )
+        cors_response.raise_for_status()
+        actual_origin = cors_response.headers.get("access-control-allow-origin")
+        if actual_origin != allowed_origin:
+            raise RuntimeError(f"CORS does not allow the expected origin: {allowed_origin}")
+        deployment_checks["allowed_origin"] = actual_origin
 
     samples: list[CloudSample] = []
     for request_number in range(1, requests + 1):
@@ -88,7 +137,10 @@ async def validate_free_gateway(
                 estimated_cost_usd=routing.get("estimated_cost_usd", "0"),
             )
         )
-    return summarize_cloud_samples(kind="free-cloud-gateway-validation", samples=samples)
+
+    report = summarize_cloud_samples(kind="free-cloud-gateway-validation", samples=samples)
+    report["deployment_checks"] = deployment_checks
+    return report
 
 
 async def validate_bedrock(
