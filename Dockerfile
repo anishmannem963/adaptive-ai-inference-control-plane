@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-RUN addgroup --system app && adduser --system --ingroup app app
+RUN addgroup --system --gid 10001 app \
+    && adduser --system --uid 10001 --ingroup app --no-create-home app
 WORKDIR /app
 COPY pyproject.toml README.md ./
 COPY control_plane ./control_plane

@@ -34,3 +34,60 @@ jobs:
       - run: pytest
       - run: python scripts/validate_dashboard.py
       - run: docker build -t adaptive-ai-inference-control-plane:ci .
+
+  infrastructure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+        with:
+          version: v3.18.4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.10.5
+      - run: helm lint deploy/helm/control-plane
+      - run: helm template iteration8 deploy/helm/control-plane --set redis.enabled=true > /tmp/rendered.yaml
+      - run: terraform fmt -check -recursive infra/terraform
+      - run: terraform -chdir=infra/terraform/cloud-run init -backend=false
+      - run: terraform -chdir=infra/terraform/cloud-run validate
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: control-plane
+      - run: kubectl kustomize deploy/kubernetes/base > /tmp/kubernetes-base.yaml
+      - run: kubectl apply --dry-run=client --validate=false -k deploy/kubernetes/base
+      - run: docker build -t adaptive-ai-inference-control-plane:ci .
+      - run: kind load docker-image adaptive-ai-inference-control-plane:ci --name control-plane
+      - name: Install chart and wait for workloads
+        run: |
+          helm upgrade --install iteration8 deploy/helm/control-plane \
+            --namespace inference-system \
+            --create-namespace \
+            --set image.tag=ci \
+            --set image.pullPolicy=Never \
+            --set redis.enabled=true
+          kubectl -n inference-system rollout status deployment/iteration8-control-plane --timeout=120s
+          kubectl -n inference-system rollout status deployment/iteration8-control-plane-redis --timeout=120s
+      - name: Diagnose failed rollout
+        if: failure()
+        run: |
+          kubectl -n inference-system get pods -o wide
+          kubectl -n inference-system describe pods
+          kubectl -n inference-system logs -l app.kubernetes.io/instance=iteration8 --all-containers --tail=100 || true
+      - name: Smoke test kind deployment
+        run: |
+          kubectl -n inference-system port-forward service/iteration8-control-plane 18080:80 >/tmp/port-forward.log 2>&1 &
+          forward_pid=$!
+          trap 'kill "$forward_pid"' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18080/health/live | grep -q '"status":"alive"'; then
+              curl --fail --silent \
+                -H 'Content-Type: application/json' \
+                -d '{"model":"mock-fast","messages":[{"role":"user","content":"kind smoke test"}]}' \
+                http://127.0.0.1:18080/v1/chat/completions | grep -q 'mock-fast'
+              exit 0
+            fi
+            sleep 2
+          done
+          cat /tmp/port-forward.log
+          exit 1

@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 6 adds opt-in adapters for local Ollama inference and Amazon Bedrock Converse, including exact Bedrock token counting and a concurrency-safe session budget. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
+Iteration 8 adds hardened Kubernetes manifests, a configurable Helm chart, live `kind` deployment tests, and a bounded Terraform foundation for Cloud Run. Infrastructure remains plan-only: no cloud resource is provisioned by CI. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
 
 ## Implemented
 
@@ -34,6 +34,11 @@ Iteration 6 adds opt-in adapters for local Ollama inference and Amazon Bedrock C
 - exact Bedrock preflight token counting and concurrency-safe budget reservations
 - configuration-driven mock, local, and cloud provider registration
 - AWS disabled by default with fail-closed budget configuration
+- security-hardened raw Kubernetes manifests for local `kind` use
+- Helm deployment with optional development Redis and external-secret support
+- live CI deployment and inference smoke tests on an ephemeral `kind` cluster
+- Terraform for Cloud Run, Artifact Registry, least-privilege runtime identity, and budget alerts
+- Cloud Run scale-to-zero with an explicit maximum-instance ceiling
 
 ## Reliability behavior
 
@@ -156,6 +161,32 @@ uvicorn control_plane.main:app --port 8080
 
 Use the public model alias `bedrock-primary`. Credentials are resolved by the standard AWS SDK credential chain and must never be committed. The session guard is a process-level experimental control, not a replacement for AWS Budgets, account quotas, or billing alerts. Prices are explicit configuration because they vary by model and region and must be verified immediately before a paid experiment.
 
+## Kubernetes and Helm
+
+The raw development manifests are under `deploy/kubernetes/base`. They run two non-root gateway replicas with health probes, resource limits, a read-only filesystem, no service-account token mount, and mock providers only.
+
+The reusable chart is under `deploy/helm/control-plane`. Its default configuration does not enable Redis, Ollama, or Bedrock. For a completely local disposable cluster with Redis:
+
+~~~bash
+kind create cluster --name control-plane
+docker build -t adaptive-ai-inference-control-plane:local .
+kind load docker-image adaptive-ai-inference-control-plane:local --name control-plane
+helm upgrade --install demo deploy/helm/control-plane \
+  --namespace inference-system \
+  --create-namespace \
+  --set image.pullPolicy=Never \
+  --set redis.enabled=true
+kubectl -n inference-system port-forward service/demo-control-plane 8080:80
+~~~
+
+The bundled Redis workload is for local and CI fault testing, not production persistence. Production deployments should reference a managed Redis URL through an existing Kubernetes Secret.
+
+## Cloud Run Terraform
+
+`infra/terraform/cloud-run` defines the free-first public gateway path. It creates Artifact Registry, a dedicated runtime identity, Cloud Run with scale-to-zero and a maximum of two instances, optional Secret Manager access, and optional $5 budget-alert thresholds.
+
+CI runs `terraform init` and `terraform validate`, but never runs `terraform apply`. A billing budget sends alerts and does not hard-stop spending. See the directory README for the explicit plan, apply, and destroy workflow.
+
 ## Configuration
 
 | Variable | Default | Purpose |
@@ -191,6 +222,7 @@ python scripts/validate_dashboard.py
 ~~~
 
 CI also starts a real Redis service and builds the production Docker image.
+The infrastructure job additionally lints the Helm chart, validates Terraform, creates an ephemeral `kind` cluster, deploys the chart, waits for both workloads, and sends a real inference request through the Kubernetes Service.
 
 ## Evidence policy
 
@@ -205,7 +237,7 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 5. Redis caching and retry idempotency — complete
 6. Metrics, tracing, and observability dashboard — complete
 7. Local and cloud model adapters — complete in code; paid cloud validation pending
-8. Kubernetes, Helm, and Terraform
+8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
 9. Repeated benchmarks and fault injection
 10. Controlled cloud validation and v1.0 release
 

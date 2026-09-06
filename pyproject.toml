@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["mypy>=1.15,<2", "pytest>=8.3,<9", "ruff>=0.11,<1"]
+dev = ["mypy>=1.15,<2", "pytest>=8.3,<9", "pyyaml>=6,<7", "ruff>=0.11,<1"]
 
 [tool.setuptools.packages.find]
 include = ["control_plane*"]

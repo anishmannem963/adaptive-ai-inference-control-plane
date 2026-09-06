@@ -1,0 +1,48 @@
+replicaCount: 2
+
+image:
+  repository: adaptive-ai-inference-control-plane
+  tag: local
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 80
+
+config:
+  appEnv: production
+  mockProvidersEnabled: true
+  ollamaEnabled: false
+  awsBedrockEnabled: false
+  awsSessionBudgetUsd: "0"
+  cacheEnabled: true
+  cacheTtlSeconds: 300
+  idempotencyTtlSeconds: 86400
+  otelServiceName: adaptive-ai-inference-control-plane
+  otelExporterOtlpEndpoint: ""
+  telemetryRecentEventsLimit: 100
+  corsAllowedOrigins: https://adaptive-ai-inference-control-plane.netlify.app
+
+redis:
+  enabled: false
+  image: redis:7.4-alpine
+
+gatewaySecrets:
+  existingSecret: ""
+  redisUrlKey: REDIS_URL
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

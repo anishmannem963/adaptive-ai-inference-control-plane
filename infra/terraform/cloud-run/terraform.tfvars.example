@@ -1,0 +1,10 @@
+project_id      = "replace-with-your-gcp-project-id"
+container_image = "us-east1-docker.pkg.dev/replace-with-your-gcp-project-id/adaptive-ai-inference/gateway@sha256:replace-with-image-digest"
+
+# Optional: create alert thresholds at 50%, 90%, and 100% of $5.
+# A budget sends alerts; it does not stop resources or cap charges.
+billing_account_id = ""
+monthly_budget_usd = 5
+
+# Optional: an existing Secret Manager secret with an active `latest` version.
+redis_secret_id = ""

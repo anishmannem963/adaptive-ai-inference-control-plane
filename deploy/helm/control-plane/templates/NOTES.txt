@@ -1,0 +1,4 @@
+Gateway service: {{ include "control-plane.fullname" . }}
+
+Local access:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "control-plane.fullname" . }} 8080:{{ .Values.service.port }}
