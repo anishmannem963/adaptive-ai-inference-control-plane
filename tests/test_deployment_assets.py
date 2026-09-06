@@ -98,7 +98,6 @@ def test_render_blueprint_is_free_and_paid_providers_are_disabled() -> None:
     assert "os.getenv('PORT', '8080')" in dockerfile
 
 
-
 def test_hosted_demo_workflow_is_bounded_and_free() -> None:
     workflow = (ROOT / ".github/workflows/hosted-demo.yml").read_text()
 
