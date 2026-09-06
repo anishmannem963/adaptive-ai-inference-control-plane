@@ -5,6 +5,8 @@ from __future__ import annotations
 from html.parser import HTMLParser
 from pathlib import Path
 
+HOSTED_API_URL = "https://adaptive-ai-inference-control-plane-api.onrender.com"
+
 
 class DashboardParser(HTMLParser):
     def __init__(self) -> None:
@@ -29,8 +31,10 @@ class DashboardParser(HTMLParser):
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     dashboard = root / "dashboard"
+    index = (dashboard / "index.html").read_text(encoding="utf-8")
+    application = (dashboard / "app.js").read_text(encoding="utf-8")
     parser = DashboardParser()
-    parser.feed((dashboard / "index.html").read_text(encoding="utf-8"))
+    parser.feed(index)
 
     required_ids = {
         "api-url",
@@ -53,9 +57,14 @@ def main() -> None:
     if missing_assets:
         raise SystemExit(f"dashboard references missing local assets: {missing_assets}")
 
+    if HOSTED_API_URL not in index or HOSTED_API_URL not in application:
+        raise SystemExit("dashboard does not default to the reviewed hosted API")
+    if "setInterval(refresh, 5000)" not in application:
+        raise SystemExit("dashboard does not retry a sleeping free-tier gateway")
+
     print(
         f"Dashboard validation passed: {len(parser.ids)} IDs, "
-        f"{len(parser.local_assets)} local assets"
+        f"{len(parser.local_assets)} local assets, hosted API configured"
     )
 
 

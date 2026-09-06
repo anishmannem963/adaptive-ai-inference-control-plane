@@ -17,6 +17,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--requests", type=int, default=25)
+    parser.add_argument("--expected-cache-backend")
+    parser.add_argument("--allowed-origin")
     parser.add_argument(
         "--output",
         type=Path,
@@ -28,10 +30,15 @@ def parse_args() -> argparse.Namespace:
 async def run(args: argparse.Namespace) -> dict[str, object]:
     async with httpx.AsyncClient(
         base_url=args.base_url.rstrip("/"),
-        timeout=30,
+        timeout=120,
         trust_env=False,
     ) as client:
-        return await validate_free_gateway(client, args.requests)
+        return await validate_free_gateway(
+            client,
+            args.requests,
+            expected_cache_backend=args.expected_cache_backend,
+            allowed_origin=args.allowed_origin,
+        )
 
 
 def main() -> None:

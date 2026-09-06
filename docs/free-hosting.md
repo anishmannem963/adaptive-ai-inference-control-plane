@@ -49,18 +49,22 @@ Run the existing bounded validator from a local checkout:
 
 ```bash
 python scripts/validate_cloud_gateway.py \
-  --base-url 'https://YOUR-SERVICE.onrender.com' \
+  --base-url 'https://adaptive-ai-inference-control-plane-api.onrender.com' \
   --requests 25 \
+  --expected-cache-backend redis \
+  --allowed-origin 'https://adaptive-ai-inference-control-plane.netlify.app' \
   --output artifacts/free-render-validation.json
 ```
 
-The validator confirms readiness, verifies the free simulated-provider configuration, performs
-25 direct requests, and records success rate and latency percentiles. It never invokes Bedrock.
+The validator confirms readiness, verifies that every registered model is simulated, ensures
+Ollama and Bedrock are disabled with a zero session budget, checks the Redis-compatible cache
+and exact Netlify CORS origin, performs 25 direct requests, and records success rate plus latency
+percentiles. It never invokes Bedrock.
 
 Also verify the cache connection:
 
 ```bash
-curl 'https://YOUR-SERVICE.onrender.com/v1/cache/status'
+curl 'https://adaptive-ai-inference-control-plane-api.onrender.com/v1/cache/status'
 ```
 
 The response should report `"backend":"redis"`. Free Key Value storage is intentionally
@@ -69,18 +73,16 @@ does not affect inference availability.
 
 ## Connect Netlify
 
-Until the generated Render hostname is known, the dashboard retains its editable **Gateway URL**
-field.
+The dashboard defaults to the verified Render gateway while retaining its editable **Gateway URL**
+field for local development and alternate deployments.
 
 1. Open <https://adaptive-ai-inference-control-plane.netlify.app/>.
-2. Paste the Render web-service URL into **Gateway URL**.
-3. Select **Connect**.
-4. Confirm that the banner reads **Gateway connected**.
-5. Submit an adaptive request and inspect its route, cache status, latency, and trace ID.
+2. Wait for the banner to read **Gateway connected**. The page retries automatically while the
+   free service wakes from an idle state.
+3. Submit an adaptive request and inspect its route, cache status, latency, and trace ID.
 
-The dashboard stores the selected gateway URL in that browser. After the first hosted validation
-passes, update the dashboard's default API URL to the exact Render hostname so interviewers do
-not need to configure it.
+The dashboard stores any manually selected gateway URL in that browser. On the public Netlify
+site, the previous localhost default is automatically migrated to the hosted Render gateway.
 
 ## Free-tier behavior
 

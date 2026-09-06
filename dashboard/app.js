@@ -1,6 +1,18 @@
+const HOSTED_API_BASE = "https://adaptive-ai-inference-control-plane-api.onrender.com";
+const LOCAL_API_BASE = "http://localhost:8080";
+const savedApiBase = localStorage.getItem("control-plane-api");
+const localDashboard = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const initialApiBase =
+  savedApiBase && (localDashboard || savedApiBase !== LOCAL_API_BASE)
+    ? savedApiBase
+    : localDashboard
+      ? LOCAL_API_BASE
+      : HOSTED_API_BASE;
+
 const state = {
-  apiBase: localStorage.getItem("control-plane-api") || "http://localhost:8080",
+  apiBase: initialApiBase,
   connected: false,
+  refreshing: false,
   summary: null,
   health: [],
   cache: null,
@@ -59,7 +71,8 @@ async function getJson(path) {
 }
 
 async function refresh() {
-  if (!state.apiBase) return;
+  if (!state.apiBase || state.refreshing) return;
+  state.refreshing = true;
 
   try {
     const [summary, health, cache] = await Promise.all([
@@ -77,8 +90,10 @@ async function refresh() {
   } catch (error) {
     state.connected = false;
     setConnection("error", "Gateway unavailable");
-    elements.lastRefresh.textContent =
-      error instanceof Error ? error.message : "Unable to reach the gateway.";
+    const detail = error instanceof Error ? error.message : "Unable to reach the gateway.";
+    elements.lastRefresh.textContent = `Gateway waking or unavailable · retrying · ${detail}`;
+  } finally {
+    state.refreshing = false;
   }
 }
 
@@ -303,6 +318,4 @@ elements.apiUrl.addEventListener("keydown", (event) => {
 });
 
 connect();
-setInterval(() => {
-  if (state.connected) refresh();
-}, 3000);
+setInterval(refresh, 5000);
