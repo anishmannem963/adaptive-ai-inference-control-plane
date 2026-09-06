@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 8 adds hardened Kubernetes manifests, a configurable Helm chart, live `kind` deployment tests, and a bounded Terraform foundation for Cloud Run. Infrastructure remains plan-only: no cloud resource is provisioned by CI. Aggregate cost, latency, and recovery claims remain pending until the repeated benchmark and fault matrices are complete.
+Iteration 9 adds reproducible HTTP load benchmarks and repeated controlled provider-fault matrices. Pull requests run bounded versions; a manual evidence workflow retains the complete 12,000-request and 60-scenario JSON reports. Infrastructure remains plan-only, and no cloud resource is provisioned by CI.
 
 ## Implemented
 
@@ -39,6 +39,10 @@ Iteration 8 adds hardened Kubernetes manifests, a configurable Helm chart, live 
 - live CI deployment and inference smoke tests on an ephemeral `kind` cluster
 - Terraform for Cloud Run, Artifact Registry, least-privilege runtime identity, and budget alerts
 - Cloud Run scale-to-zero with an explicit maximum-instance ceiling
+- repeatable HTTP load comparison across four routing policies
+- p50, p95, p99, throughput, cost, provider-distribution, and fallback reports
+- repeated provider error, timeout, circuit, recovery, and total-outage scenarios
+- downloadable machine-readable evaluation artifacts from GitHub Actions
 
 ## Reliability behavior
 
@@ -209,6 +213,8 @@ CI runs `terraform init` and `terraform validate`, but never runs `terraform app
 | `OTEL_SERVICE_NAME` | `adaptive-ai-inference-control-plane` | Trace service identity |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | empty | Optional OTLP/HTTP trace destination |
 | `TELEMETRY_RECENT_EVENTS_LIMIT` | `100` | Maximum in-memory dashboard events |
+| `PROVIDER_RATE_PER_SECOND` | `100` | Per-provider token-bucket refill rate |
+| `PROVIDER_BURST_CAPACITY` | `100` | Per-provider token-bucket burst ceiling |
 | `CORS_ALLOWED_ORIGINS` | local dashboard origins | Comma-separated browser origins |
 
 ## Validation
@@ -224,6 +230,8 @@ python scripts/validate_dashboard.py
 CI also starts a real Redis service and builds the production Docker image.
 The infrastructure job additionally lints the Helm chart, validates Terraform, creates an ephemeral `kind` cluster, deploys the chart, waits for both workloads, and sends a real inference request through the Kubernetes Service.
 
+The evaluation job runs 400 HTTP requests across all four routing profiles plus 12 provider-fault scenarios. See [`docs/evaluation.md`](docs/evaluation.md) for the complete 12,000-request and 60-scenario evidence workflow.
+
 ## Evidence policy
 
 Mock-provider prices, quality scores, latency, and failures are controlled simulation inputs. No production performance, cost-reduction, recovery-time, vLLM, Bedrock, Kubernetes, or cloud-provider claim will be published until repeated experiments retain machine-readable evidence.
@@ -238,7 +246,7 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 6. Metrics, tracing, and observability dashboard — complete
 7. Local and cloud model adapters — complete in code; paid cloud validation pending
 8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
-9. Repeated benchmarks and fault injection
+9. Repeated benchmarks and fault injection — complete in code; full evidence run pending
 10. Controlled cloud validation and v1.0 release
 
 ## License

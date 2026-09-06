@@ -1,0 +1,84 @@
+name: Evaluation evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      requests_per_run:
+        description: Requests in each policy run
+        required: true
+        default: 1000
+        type: number
+      repetitions:
+        description: Repetitions for every load profile
+        required: true
+        default: 3
+        type: number
+      concurrency:
+        description: Concurrent HTTP workers
+        required: true
+        default: 20
+        type: number
+      fault_repetitions:
+        description: Repetitions for each fault category
+        required: true
+        default: 10
+        type: number
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CACHE_ENABLED: "false"
+      MOCK_PROVIDERS_ENABLED: "true"
+      OLLAMA_ENABLED: "false"
+      AWS_BEDROCK_ENABLED: "false"
+      PROVIDER_RATE_PER_SECOND: "100000"
+      PROVIDER_BURST_CAPACITY: "100000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip && pip install -e ".[dev]"
+      - name: Start zero-cost gateway
+        run: |
+          uvicorn control_plane.main:app --host 127.0.0.1 --port 8080 >/tmp/gateway.log 2>&1 &
+          echo $! > /tmp/gateway.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/gateway.log
+          exit 1
+      - name: Run repeated HTTP load matrix
+        run: |
+          python scripts/run_load_benchmark.py \
+            --requests "${{ inputs.requests_per_run }}" \
+            --repetitions "${{ inputs.repetitions }}" \
+            --concurrency "${{ inputs.concurrency }}" \
+            --output artifacts/load-benchmark.json
+      - name: Run repeated provider fault matrix
+        run: |
+          python scripts/run_fault_matrix.py \
+            --repetitions "${{ inputs.fault_repetitions }}" \
+            --output artifacts/fault-matrix.json
+      - name: Stop gateway
+        if: always()
+        run: |
+          if test -f /tmp/gateway.pid; then
+            kill "$(cat /tmp/gateway.pid)" || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iteration-9-evaluation-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 30

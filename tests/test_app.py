@@ -12,6 +12,14 @@ def test_cloud_is_disabled_by_default() -> None:
     assert settings.ollama_enabled is False
     assert settings.aws_bedrock_enabled is False
     assert settings.aws_session_budget_usd == Decimal("0")
+    assert settings.provider_rate_per_second == 100
+    assert settings.provider_burst_capacity == 100
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "nan", "inf", "invalid"])
+def test_provider_rate_must_be_positive_and_finite(value: str) -> None:
+    with pytest.raises(ConfigurationError, match="PROVIDER_RATE_PER_SECOND"):
+        Settings.from_env({"PROVIDER_RATE_PER_SECOND": value})
 
 
 def test_bedrock_requires_budget() -> None:

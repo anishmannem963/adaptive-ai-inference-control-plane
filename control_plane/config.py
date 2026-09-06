@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -52,6 +53,16 @@ def parse_positive_int(value: str, setting: str) -> int:
     return parsed
 
 
+def parse_positive_float(value: str, setting: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise ConfigurationError(f"{setting} must be a number") from exc
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ConfigurationError(f"{setting} must be positive")
+    return parsed
+
+
 def parse_csv(value: str) -> tuple[str, ...]:
     return tuple(item.strip() for item in value.split(",") if item.strip())
 
@@ -82,6 +93,8 @@ class Settings:
     telemetry_service_name: str = "adaptive-ai-inference-control-plane"
     otel_exporter_otlp_endpoint: str = ""
     telemetry_recent_events_limit: int = 100
+    provider_rate_per_second: float = 100.0
+    provider_burst_capacity: int = 100
     cors_allowed_origins: tuple[str, ...] = (
         "http://localhost:5173",
         "http://localhost:8888",
@@ -156,6 +169,14 @@ class Settings:
             telemetry_recent_events_limit=parse_positive_int(
                 source.get("TELEMETRY_RECENT_EVENTS_LIMIT", "100"),
                 "TELEMETRY_RECENT_EVENTS_LIMIT",
+            ),
+            provider_rate_per_second=parse_positive_float(
+                source.get("PROVIDER_RATE_PER_SECOND", "100"),
+                "PROVIDER_RATE_PER_SECOND",
+            ),
+            provider_burst_capacity=parse_positive_int(
+                source.get("PROVIDER_BURST_CAPACITY", "100"),
+                "PROVIDER_BURST_CAPACITY",
             ),
             cors_allowed_origins=parse_csv(
                 source.get(

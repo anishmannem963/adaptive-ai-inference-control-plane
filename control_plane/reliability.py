@@ -207,9 +207,28 @@ class ProviderRuntime:
 
 
 class ReliabilityManager:
-    def __init__(self, providers: tuple[InferenceProvider, ...]) -> None:
+    def __init__(
+        self,
+        providers: tuple[InferenceProvider, ...],
+        *,
+        timeout_seconds: float = 5.0,
+        max_concurrency: int = 32,
+        rate_per_second: float = 100.0,
+        burst_capacity: float = 100.0,
+        failure_threshold: int = 3,
+        recovery_timeout_seconds: float = 10.0,
+    ) -> None:
         self._runtimes = {
-            provider.descriptor.name: ProviderRuntime(provider) for provider in providers
+            provider.descriptor.name: ProviderRuntime(
+                provider,
+                timeout_seconds=timeout_seconds,
+                max_concurrency=max_concurrency,
+                rate_per_second=rate_per_second,
+                burst_capacity=burst_capacity,
+                failure_threshold=failure_threshold,
+                recovery_timeout_seconds=recovery_timeout_seconds,
+            )
+            for provider in providers
         }
 
     async def invoke(

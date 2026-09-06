@@ -91,3 +91,58 @@ jobs:
           done
           cat /tmp/port-forward.log
           exit 1
+
+  evaluation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CACHE_ENABLED: "false"
+      MOCK_PROVIDERS_ENABLED: "true"
+      OLLAMA_ENABLED: "false"
+      AWS_BEDROCK_ENABLED: "false"
+      PROVIDER_RATE_PER_SECOND: "100000"
+      PROVIDER_BURST_CAPACITY: "100000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip && pip install -e ".[dev]"
+      - name: Start zero-cost gateway
+        run: |
+          uvicorn control_plane.main:app --host 127.0.0.1 --port 8080 >/tmp/gateway.log 2>&1 &
+          echo $! > /tmp/gateway.pid
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8080/health/ready >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/gateway.log
+          exit 1
+      - name: Run bounded load gate
+        run: |
+          python scripts/run_load_benchmark.py \
+            --requests 100 \
+            --repetitions 1 \
+            --concurrency 20 \
+            --output artifacts/ci-load-benchmark.json
+      - name: Run bounded fault gate
+        run: |
+          python scripts/run_fault_matrix.py \
+            --repetitions 2 \
+            --output artifacts/ci-fault-matrix.json
+      - name: Stop gateway
+        if: always()
+        run: |
+          if test -f /tmp/gateway.pid; then
+            kill "$(cat /tmp/gateway.pid)" || true
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: iteration-9-ci-evaluation-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: error
+          retention-days: 7
