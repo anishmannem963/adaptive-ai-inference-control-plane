@@ -59,6 +59,45 @@ def test_helm_values_do_not_enable_paid_or_external_providers() -> None:
     assert values["redis"] == {"enabled": False, "image": "redis:7.4-alpine"}
 
 
+def test_render_blueprint_is_free_and_paid_providers_are_disabled() -> None:
+    blueprint = load_yaml("render.yaml")
+    services = blueprint["services"]
+    assert isinstance(services, list)
+
+    by_type = {service["type"]: service for service in services}
+    gateway = by_type["web"]
+    cache = by_type["keyvalue"]
+
+    assert gateway["runtime"] == "docker"
+    assert gateway["plan"] == "free"
+    assert gateway["healthCheckPath"] == "/health/ready"
+    assert gateway["autoDeployTrigger"] == "checksPass"
+
+    env = {item["key"]: item for item in gateway["envVars"]}
+    assert env["MOCK_PROVIDERS_ENABLED"]["value"] == "true"
+    assert env["OLLAMA_ENABLED"]["value"] == "false"
+    assert env["AWS_BEDROCK_ENABLED"]["value"] == "false"
+    assert env["AWS_SESSION_BUDGET_USD"]["value"] == "0"
+    assert env["CORS_ALLOWED_ORIGINS"]["value"] == (
+        "https://adaptive-ai-inference-control-plane.netlify.app"
+    )
+    assert env["REDIS_URL"]["fromService"] == {
+        "type": "keyvalue",
+        "name": "adaptive-ai-inference-control-plane-cache",
+        "property": "connectionString",
+    }
+
+    assert cache["plan"] == "free"
+    assert cache["ipAllowList"] == []
+    assert cache["persistenceMode"] is False
+    assert cache["maxmemoryPolicy"] == "allkeys-lru"
+    assert blueprint["previews"] == {"generation": "off"}
+
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "${PORT:-8080}" in dockerfile
+    assert "os.getenv('PORT', '8080')" in dockerfile
+
+
 def test_cloud_run_terraform_is_bounded_and_not_automatically_applied() -> None:
     main = (ROOT / "infra/terraform/cloud-run/main.tf").read_text()
     variables = (ROOT / "infra/terraform/cloud-run/variables.tf").read_text()
