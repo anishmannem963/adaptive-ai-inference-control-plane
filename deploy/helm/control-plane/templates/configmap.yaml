@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "control-plane.fullname" . }}
+  labels:
+    {{- include "control-plane.labels" . | nindent 4 }}
+data:
+  APP_ENV: {{ .Values.config.appEnv | quote }}
+  MOCK_PROVIDERS_ENABLED: {{ .Values.config.mockProvidersEnabled | quote }}
+  OLLAMA_ENABLED: {{ .Values.config.ollamaEnabled | quote }}
+  AWS_BEDROCK_ENABLED: {{ .Values.config.awsBedrockEnabled | quote }}
+  AWS_SESSION_BUDGET_USD: {{ .Values.config.awsSessionBudgetUsd | quote }}
+  CACHE_ENABLED: {{ .Values.config.cacheEnabled | quote }}
+  CACHE_TTL_SECONDS: {{ .Values.config.cacheTtlSeconds | quote }}
+  IDEMPOTENCY_TTL_SECONDS: {{ .Values.config.idempotencyTtlSeconds | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  TELEMETRY_RECENT_EVENTS_LIMIT: {{ .Values.config.telemetryRecentEventsLimit | quote }}
+  CORS_ALLOWED_ORIGINS: {{ .Values.config.corsAllowedOrigins | quote }}
