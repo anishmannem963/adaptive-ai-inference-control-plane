@@ -1,4 +1,6 @@
 import asyncio
+import json
+from pathlib import Path
 
 from control_plane.evaluation.faults import SCENARIOS, run_fault_matrix
 from control_plane.evaluation.load import (
@@ -79,3 +81,15 @@ def test_fault_matrix_exercises_every_category() -> None:
     assert {result["scenario"] for result in report["results"]} == {
         scenario.__name__ for scenario in SCENARIOS
     }
+
+
+def test_retained_hosted_evidence_has_provenance_and_claim_boundary() -> None:
+    path = Path(__file__).parents[1] / "docs/evidence/iteration-9-hosted-summary.json"
+    report = json.loads(path.read_text())
+
+    assert report["source"]["commit_sha"] == ("e5af7826e02a8576e3f38cc820d868cbee916447")
+    assert report["source"]["workflow_run_id"] == 34046374838
+    assert len(report["source"]["artifact_sha256"]) == 64
+    assert report["load_summary"]["successful_requests"] == 12000
+    assert report["fault_summary"]["passed"] == 60
+    assert "controlled mock providers" in report["claim_boundary"]

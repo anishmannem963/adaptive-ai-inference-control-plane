@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 9 adds reproducible HTTP load benchmarks and repeated controlled provider-fault matrices. Pull requests run bounded versions; a manual evidence workflow retains the complete 12,000-request and 60-scenario JSON reports. Infrastructure remains plan-only, and no cloud resource is provisioned by CI.
+Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled HTTP requests and 60/60 provider-fault scenarios passed. Iteration 10 prepares guarded Cloud Run and AWS Bedrock validation; no cloud resource or paid request is triggered automatically.
 
 ## Implemented
 
@@ -43,6 +43,9 @@ Iteration 9 adds reproducible HTTP load benchmarks and repeated controlled provi
 - p50, p95, p99, throughput, cost, provider-distribution, and fallback reports
 - repeated provider error, timeout, circuit, recovery, and total-outage scenarios
 - downloadable machine-readable evaluation artifacts from GitHub Actions
+- guarded free-provider Cloud Run and explicitly confirmed Bedrock validation clients
+- permanent hosted-evidence provenance with clear simulated-versus-real claim boundaries
+- tag-gated Python distributions, SHA-256 checksums, and GitHub Release publishing
 
 ## Reliability behavior
 
@@ -232,6 +235,13 @@ The infrastructure job additionally lints the Helm chart, validates Terraform, c
 
 The evaluation job runs 400 HTTP requests across all four routing profiles plus 12 provider-fault scenarios. See [`docs/evaluation.md`](docs/evaluation.md) for the complete 12,000-request and 60-scenario evidence workflow.
 
+The official hosted run completed all 12,000 requests without failure and passed all 60
+controlled fault scenarios. Under the configured mock prices, adaptive routing reduced estimated
+cost by 38.558% versus round robin while recording 179.105 ms mean p95 gateway latency. These
+are controlled mock-provider measurements, not cloud savings. See
+[`docs/evidence/iteration-9-hosted-summary.json`](docs/evidence/iteration-9-hosted-summary.json)
+for provenance and the complete claim boundary.
+
 ## Evidence policy
 
 Mock-provider prices, quality scores, latency, and failures are controlled simulation inputs. No production performance, cost-reduction, recovery-time, vLLM, Bedrock, Kubernetes, or cloud-provider claim will be published until repeated experiments retain machine-readable evidence.
@@ -246,8 +256,8 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 6. Metrics, tracing, and observability dashboard — complete
 7. Local and cloud model adapters — complete in code; paid cloud validation pending
 8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
-9. Repeated benchmarks and fault injection — complete in code; full evidence run pending
-10. Controlled cloud validation and v1.0 release
+9. Repeated benchmarks and fault injection — complete with hosted evidence
+10. Controlled cloud validation and v1.0 release — release candidate preparation in progress
 
 ## License
 

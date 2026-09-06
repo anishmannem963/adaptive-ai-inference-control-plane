@@ -34,6 +34,7 @@ jobs:
       - run: pytest
       - run: python scripts/validate_dashboard.py
       - run: docker build -t adaptive-ai-inference-control-plane:ci .
+      - run: python -m pip install build && python -m build
 
   infrastructure:
     runs-on: ubuntu-latest

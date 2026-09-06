@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "evidence_type": "controlled_mock_provider_evaluation",
+  "source": {
+    "commit_sha": "e5af7826e02a8576e3f38cc820d868cbee916447",
+    "workflow_run_id": 34046374838,
+    "workflow_url": "https://github.com/anishmannem963/adaptive-ai-inference-control-plane/actions/runs/34046374838",
+    "artifact_id": 9993231161,
+    "artifact_name": "iteration-9-evaluation-34046374838",
+    "artifact_sha256": "59b38621be540330a5236d9e9294a0b5135e87c14833b608886102e15cc8d6c1"
+  },
+  "scope": {
+    "runner": "GitHub-hosted ubuntu-latest",
+    "providers": "deterministic controlled mocks",
+    "cache_enabled": false,
+    "requests_per_run": 1000,
+    "concurrency": 20,
+    "repetitions_per_policy": 3,
+    "fault_repetitions_per_category": 10
+  },
+  "load_summary": {
+    "runs": 12,
+    "total_requests": 12000,
+    "successful_requests": 12000,
+    "failed_requests": 0,
+    "success_rate": 1.0
+  },
+  "policy_aggregates": {
+    "adaptive": {
+      "requests": 3000,
+      "mean_throughput_rps": 348.302,
+      "mean_p95_latency_ms": 179.105,
+      "estimated_cost_per_request_usd": "0.0000392"
+    },
+    "round_robin": {
+      "requests": 3000,
+      "mean_throughput_rps": 340.253,
+      "mean_p95_latency_ms": 184.54,
+      "estimated_cost_per_request_usd": "0.00006380013333333333333333333333"
+    },
+    "single_mock_quality": {
+      "requests": 3000,
+      "mean_throughput_rps": 360.602,
+      "mean_p95_latency_ms": 170.67,
+      "estimated_cost_per_request_usd": "0.00015192"
+    },
+    "lowest_cost": {
+      "requests": 3000,
+      "mean_throughput_rps": 354.081,
+      "mean_p95_latency_ms": 174.347,
+      "estimated_cost_per_request_usd": "0.000007096"
+    }
+  },
+  "adaptive_comparisons": {
+    "round_robin": {
+      "estimated_cost_reduction_percent": 38.558,
+      "mean_p95_latency_change_percent": -2.945
+    },
+    "single_mock_quality": {
+      "estimated_cost_reduction_percent": 74.197,
+      "mean_p95_latency_change_percent": 4.942
+    },
+    "lowest_cost": {
+      "estimated_cost_reduction_percent": -452.424,
+      "mean_p95_latency_change_percent": 2.729
+    }
+  },
+  "fault_summary": {
+    "scenarios": 60,
+    "passed": 60,
+    "failed": 0,
+    "pass_rate": 1.0,
+    "mean_scenario_latency_ms": 5.442,
+    "max_scenario_latency_ms": 33.596,
+    "categories": [
+      "provider_error_failover",
+      "provider_timeout_failover",
+      "open_circuit_isolation",
+      "half_open_recovery",
+      "explicit_model_no_substitution",
+      "total_provider_outage"
+    ]
+  },
+  "claim_boundary": "These results measure the gateway with controlled mock providers. They are not AWS Bedrock, GPU, public-network, or production-cloud measurements."
+}

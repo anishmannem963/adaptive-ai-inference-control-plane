@@ -70,3 +70,14 @@ def test_cloud_run_terraform_is_bounded_and_not_automatically_applied() -> None:
     assert "default     = 2" in variables
     assert "default     = 5" in variables
     assert "terraform apply" not in workflow
+
+
+def test_release_workflow_is_tag_gated_and_does_not_provision_cloud() -> None:
+    workflow = (ROOT / ".github/workflows/release.yml").read_text()
+
+    assert 'tags:\n      - "v*"' in workflow
+    assert "python -m build" in workflow
+    assert "sha256sum dist/*" in workflow
+    assert 'gh release create "$GITHUB_REF_NAME"' in workflow
+    assert "terraform apply" not in workflow
+    assert "validate_bedrock.py" not in workflow
