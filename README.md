@@ -192,9 +192,10 @@ The bundled Redis workload is for local and CI fault testing, not production per
 ## Completely free hosted demo
 
 The root `render.yaml` deploys the Dockerized gateway and a Redis-compatible Key Value cache on
-Render's free plans. It enables deterministic mock providers, disables Ollama and Bedrock, fixes
-the Bedrock session budget at USD 0, and permits browser access from the production Netlify
-origin.
+Render's free plans. The public gateway is
+<https://adaptive-ai-inference-control-plane-api.onrender.com>. It enables deterministic mock
+providers, disables Ollama and Bedrock, fixes the Bedrock session budget at USD 0, and permits
+browser access from the production Netlify origin.
 
 See [`docs/free-hosting.md`](docs/free-hosting.md) for the reviewed Blueprint flow, bounded
 hosted validator, free-tier limitations, and dashboard connection steps. This path demonstrates
@@ -271,7 +272,7 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
 9. Repeated benchmarks and fault injection — complete with hosted evidence
 10. Controlled cloud validation and v1.0 release — guarded validation tooling complete
-11. Completely free Render + Netlify hosted demo — deployment configuration ready
+11. Completely free Render + Netlify hosted demo — deployed; retained validation in progress
 
 ## License
 
