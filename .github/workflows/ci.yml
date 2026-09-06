@@ -68,6 +68,12 @@ jobs:
             --set redis.enabled=true
           kubectl -n inference-system rollout status deployment/iteration8-control-plane --timeout=120s
           kubectl -n inference-system rollout status deployment/iteration8-control-plane-redis --timeout=120s
+      - name: Diagnose failed rollout
+        if: failure()
+        run: |
+          kubectl -n inference-system get pods -o wide
+          kubectl -n inference-system describe pods
+          kubectl -n inference-system logs -l app.kubernetes.io/instance=iteration8 --all-containers --tail=100 || true
       - name: Smoke test kind deployment
         run: |
           kubectl -n inference-system port-forward service/iteration8-control-plane 18080:80 >/tmp/port-forward.log 2>&1 &

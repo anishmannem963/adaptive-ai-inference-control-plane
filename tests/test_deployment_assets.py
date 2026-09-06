@@ -41,7 +41,12 @@ def test_kubernetes_base_is_complete_and_free_by_default() -> None:
     gateway = containers[0]
     assert gateway["imagePullPolicy"] == "Never"
     assert gateway["securityContext"]["readOnlyRootFilesystem"] is True
+    assert pod_spec["securityContext"]["runAsUser"] == 10001
     assert gateway["readinessProbe"]["httpGet"]["path"] == "/health/ready"
+
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "--uid 10001" in dockerfile
+    assert "--gid 10001" in dockerfile
 
 
 def test_helm_values_do_not_enable_paid_or_external_providers() -> None:
