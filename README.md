@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled HTTP requests and 60/60 provider-fault scenarios passed. Iteration 10 prepares guarded Cloud Run and AWS Bedrock validation; no cloud resource or paid request is triggered automatically.
+Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled HTTP requests and 60/60 provider-fault scenarios passed. Iteration 10 prepared guarded cloud validation. The current free-hosting iteration adds a Render gateway and Key Value deployment path for the existing Netlify dashboard; AWS Bedrock remains disabled and no paid provider is invoked.
 
 ## Implemented
 
@@ -46,6 +46,7 @@ Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled 
 - guarded free-provider Cloud Run and explicitly confirmed Bedrock validation clients
 - permanent hosted-evidence provenance with clear simulated-versus-real claim boundaries
 - tag-gated Python distributions, SHA-256 checksums, and GitHub Release publishing
+- zero-cost Render Blueprint for the FastAPI gateway and volatile Key Value cache
 
 ## Reliability behavior
 
@@ -188,6 +189,18 @@ kubectl -n inference-system port-forward service/demo-control-plane 8080:80
 
 The bundled Redis workload is for local and CI fault testing, not production persistence. Production deployments should reference a managed Redis URL through an existing Kubernetes Secret.
 
+## Completely free hosted demo
+
+The root `render.yaml` deploys the Dockerized gateway and a Redis-compatible Key Value cache on
+Render's free plans. It enables deterministic mock providers, disables Ollama and Bedrock, fixes
+the Bedrock session budget at USD 0, and permits browser access from the production Netlify
+origin.
+
+See [`docs/free-hosting.md`](docs/free-hosting.md) for the reviewed Blueprint flow, bounded
+hosted validator, free-tier limitations, and dashboard connection steps. This path demonstrates
+the real control-plane logic using simulated inference providers; it is not evidence of real
+multi-cloud or Bedrock execution.
+
 ## Cloud Run Terraform
 
 `infra/terraform/cloud-run` defines the free-first public gateway path. It creates Artifact Registry, a dedicated runtime identity, Cloud Run with scale-to-zero and a maximum of two instances, optional Secret Manager access, and optional $5 budget-alert thresholds.
@@ -257,7 +270,8 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 7. Local and cloud model adapters — complete in code; paid cloud validation pending
 8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
 9. Repeated benchmarks and fault injection — complete with hosted evidence
-10. Controlled cloud validation and v1.0 release — release candidate preparation in progress
+10. Controlled cloud validation and v1.0 release — guarded validation tooling complete
+11. Completely free Render + Netlify hosted demo — deployment configuration ready
 
 ## License
 
