@@ -47,7 +47,7 @@ services:
     region: virginia
     ipAllowList: []
     maxmemoryPolicy: allkeys-lru
-    persistenceMode: off
+    persistenceMode: "off"
 
 previews:
-  generation: off
+  generation: "off"
