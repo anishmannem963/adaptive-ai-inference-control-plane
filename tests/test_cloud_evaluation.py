@@ -64,12 +64,27 @@ def test_free_cloud_validation_uses_only_mock_provider() -> None:
             transport=httpx.ASGITransport(app=app),
             base_url="http://test",
         ) as client:
-            return await validate_free_gateway(client, requests=3)
+            return await validate_free_gateway(
+                client,
+                requests=3,
+                expected_cache_backend="memory",
+                allowed_origin="http://localhost:5173",
+            )
 
     report = asyncio.run(execute())
 
     assert report["summary"]["successful_requests"] == 3
     assert {sample["provider"] for sample in report["samples"]} == {"mock-fast"}
+    assert report["deployment_checks"] == {
+        "ready": True,
+        "mock_providers_enabled": True,
+        "ollama_enabled": False,
+        "aws_bedrock_enabled": False,
+        "aws_session_budget_usd": "0",
+        "all_models_simulated": True,
+        "cache_backend": "memory",
+        "allowed_origin": "http://localhost:5173",
+    }
 
 
 def test_bedrock_validation_requires_and_measures_real_provider() -> None:
