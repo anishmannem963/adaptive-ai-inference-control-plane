@@ -98,6 +98,19 @@ def test_render_blueprint_is_free_and_paid_providers_are_disabled() -> None:
     assert "os.getenv('PORT', '8080')" in dockerfile
 
 
+
+def test_hosted_demo_workflow_is_bounded_and_free() -> None:
+    workflow = (ROOT / ".github/workflows/hosted-demo.yml").read_text()
+
+    assert "https://adaptive-ai-inference-control-plane-api.onrender.com" in workflow
+    assert "--requests 25" in workflow
+    assert "--expected-cache-backend redis" in workflow
+    assert "https://adaptive-ai-inference-control-plane.netlify.app" in workflow
+    assert "validate_bedrock.py" not in workflow
+    assert "AWS_BEDROCK_ENABLED=true" not in workflow
+    assert "terraform apply" not in workflow
+
+
 def test_cloud_run_terraform_is_bounded_and_not_automatically_applied() -> None:
     main = (ROOT / "infra/terraform/cloud-run/main.tf").read_text()
     variables = (ROOT / "infra/terraform/cloud-run/variables.tf").read_text()
