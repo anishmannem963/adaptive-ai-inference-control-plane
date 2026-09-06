@@ -89,7 +89,7 @@ def test_render_blueprint_is_free_and_paid_providers_are_disabled() -> None:
 
     assert cache["plan"] == "free"
     assert cache["ipAllowList"] == []
-    assert cache["persistenceMode"] is False
+    assert cache["persistenceMode"] == "off"
     assert cache["maxmemoryPolicy"] == "allkeys-lru"
     assert blueprint["previews"] == {"generation": "off"}
 
