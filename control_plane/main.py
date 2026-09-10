@@ -62,6 +62,19 @@ class ModelList(BaseModel):
     data: list[ModelInfo]
 
 
+class ProviderInfo(BaseModel):
+    name: str
+    models: list[str]
+    simulated: bool
+    nominal_latency_ms: int
+    input_cost_per_million_tokens_usd: str
+    output_cost_per_million_tokens_usd: str
+    quality_score: float
+    utilization_score: float
+    trusted_for_sensitive: bool
+    deployment: str
+
+
 class ProviderHealth(BaseModel):
     provider: str
     circuit: str
@@ -167,6 +180,28 @@ def create_app(
     async def provider_health() -> list[ProviderHealth]:
         return [ProviderHealth(**asdict(snapshot)) for snapshot in await runtime.health()]
 
+    @app.get("/v1/providers", response_model=list[ProviderInfo], tags=["system"])
+    async def provider_profiles() -> list[ProviderInfo]:
+        return [
+            ProviderInfo(
+                name=provider.descriptor.name,
+                models=list(provider.descriptor.models),
+                simulated=provider.descriptor.simulated,
+                nominal_latency_ms=provider.descriptor.nominal_latency_ms,
+                input_cost_per_million_tokens_usd=(
+                    provider.descriptor.input_cost_per_million_tokens_usd
+                ),
+                output_cost_per_million_tokens_usd=(
+                    provider.descriptor.output_cost_per_million_tokens_usd
+                ),
+                quality_score=provider.descriptor.quality_score,
+                utilization_score=provider.descriptor.utilization_score,
+                trusted_for_sensitive=provider.descriptor.trusted_for_sensitive,
+                deployment=provider.descriptor.deployment,
+            )
+            for provider in providers.list()
+        ]
+
     @app.get("/v1/cache/status", response_model=CacheStatus, tags=["system"])
     async def cache_status() -> CacheStatus:
         return CacheStatus(
@@ -225,6 +260,27 @@ def create_app(
         trace_id = telemetry.current_trace_id()
         if request.stream:
             raise HTTPException(status_code=501, detail="streaming is not implemented yet")
+
+        simulated_failure_provider = request.routing.simulated_failure_provider
+        if simulated_failure_provider is not None:
+            failure_target = next(
+                (
+                    provider
+                    for provider in providers.list()
+                    if provider.descriptor.name == simulated_failure_provider
+                ),
+                None,
+            )
+            if failure_target is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="simulated failure provider is not registered",
+                )
+            if not failure_target.descriptor.simulated:
+                raise HTTPException(
+                    status_code=422,
+                    detail="request-scoped failure injection is limited to simulated providers",
+                )
 
         if (x_client_id is None) != (x_idempotency_key is None):
             raise HTTPException(
@@ -292,7 +348,11 @@ def create_app(
 
             provider_name = decision.provider.descriptor.name
             attempted.append(provider_name)
-            if config.cache_enabled:
+            if simulated_failure_provider == provider_name:
+                telemetry.record_provider_call(provider_name, "failure", 0)
+                excluded.add(provider_name)
+                continue
+            if config.cache_enabled and request.routing.cache_mode == "default":
                 result = await response_cache.get(request, provider_name)
                 if result is not None:
                     cache_hit = True
@@ -315,7 +375,7 @@ def create_app(
                     (time.perf_counter() - provider_started) * 1000,
                     result.estimated_cost_usd,
                 )
-                if config.cache_enabled:
+                if config.cache_enabled and request.routing.cache_mode == "default":
                     await response_cache.set(request, provider_name, result)
                 break
 
@@ -354,6 +414,7 @@ def create_app(
                 simulated=decision.provider.descriptor.simulated,
                 cache_hit=cache_hit,
                 estimated_cost_usd=result.estimated_cost_usd,
+                maximum_estimated_cost_usd=str(decision.estimated_cost_usd),
                 latency_ms=round(latency_ms, 3),
             ),
         )
@@ -364,7 +425,7 @@ def create_app(
                 request,
                 completion,
             )
-        if config.cache_enabled:
+        if config.cache_enabled and request.routing.cache_mode == "default":
             cache_status = "HIT" if cache_hit else "MISS"
         else:
             cache_status = "BYPASS"

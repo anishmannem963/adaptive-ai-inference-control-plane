@@ -17,6 +17,9 @@ class ProviderDescriptor:
     input_cost_per_million_tokens_usd: str
     output_cost_per_million_tokens_usd: str
     quality_score: float
+    utilization_score: float = 0.0
+    trusted_for_sensitive: bool = False
+    deployment: str = "configured provider"
 
 
 class InferenceProvider(Protocol):

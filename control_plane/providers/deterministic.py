@@ -52,6 +52,9 @@ def default_providers() -> tuple[DeterministicProvider, ...]:
                 input_cost_per_million_tokens_usd="0.10",
                 output_cost_per_million_tokens_usd="0.40",
                 quality_score=0.72,
+                utilization_score=0.62,
+                trusted_for_sensitive=False,
+                deployment="simulated economy profile",
             )
         ),
         DeterministicProvider(
@@ -63,6 +66,9 @@ def default_providers() -> tuple[DeterministicProvider, ...]:
                 input_cost_per_million_tokens_usd="0.80",
                 output_cost_per_million_tokens_usd="2.40",
                 quality_score=0.81,
+                utilization_score=0.28,
+                trusted_for_sensitive=False,
+                deployment="simulated low-latency profile",
             )
         ),
         DeterministicProvider(
@@ -74,6 +80,9 @@ def default_providers() -> tuple[DeterministicProvider, ...]:
                 input_cost_per_million_tokens_usd="2.00",
                 output_cost_per_million_tokens_usd="8.00",
                 quality_score=0.94,
+                utilization_score=0.12,
+                trusted_for_sensitive=True,
+                deployment="simulated trusted-quality profile",
             )
         ),
     )

@@ -30,6 +30,8 @@ class OllamaProvider:
             input_cost_per_million_tokens_usd="0",
             output_cost_per_million_tokens_usd="0",
             quality_score=self.quality_score,
+            trusted_for_sensitive=True,
+            deployment="local Ollama runtime",
         )
 
     async def complete(self, request: ChatCompletionRequest) -> ProviderResult:
