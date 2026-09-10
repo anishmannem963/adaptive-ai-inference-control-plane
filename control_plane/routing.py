@@ -41,6 +41,8 @@ class RoutingEngine:
         request: ChatCompletionRequest,
         excluded_providers: frozenset[str] = frozenset(),
     ) -> RouteDecision:
+        request_exclusions = frozenset(request.routing.excluded_providers)
+        excluded_providers = excluded_providers.union(request_exclusions)
         if request.model != "auto":
             provider = self._registry.resolve(request.model)
             if provider.descriptor.name in excluded_providers:
@@ -101,7 +103,7 @@ class RoutingEngine:
             reason = "selected maximum measured quality score"
         else:
             selected = min(eligible, key=lambda item: self._adaptive_score(item, eligible, request))
-            reason = "selected minimum normalized weighted cost-latency-quality score"
+            reason = "selected minimum normalized weighted cost-latency-utilization-quality score"
 
         return RouteDecision(
             provider=selected.provider,
@@ -134,7 +136,12 @@ class RoutingEngine:
         options = request.routing
         descriptor = candidate.provider.descriptor
         return not (
-            options.max_latency_ms is not None
+            options.allowed_providers is not None
+            and descriptor.name not in options.allowed_providers
+            or descriptor.name in options.excluded_providers
+            or options.require_trusted
+            and not descriptor.trusted_for_sensitive
+            or options.max_latency_ms is not None
             and descriptor.nominal_latency_ms > options.max_latency_ms
             or options.max_estimated_cost_usd is not None
             and candidate.estimated_cost_usd > options.max_estimated_cost_usd
@@ -162,5 +169,6 @@ class RoutingEngine:
         return (
             weights.cost * float(candidate.estimated_cost_usd / max_cost)
             + weights.latency * candidate.provider.descriptor.nominal_latency_ms / max_latency
+            + weights.utilization * candidate.provider.descriptor.utilization_score
             + weights.quality * (1 - candidate.provider.descriptor.quality_score)
         )

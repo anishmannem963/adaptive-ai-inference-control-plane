@@ -30,11 +30,12 @@ class RoutingWeights(BaseModel):
 
     cost: float = Field(default=0.40, ge=0)
     latency: float = Field(default=0.35, ge=0)
+    utilization: float = Field(default=0.0, ge=0)
     quality: float = Field(default=0.25, ge=0)
 
     @model_validator(mode="after")
     def require_positive_total(self) -> RoutingWeights:
-        if self.cost + self.latency + self.quality <= 0:
+        if self.cost + self.latency + self.utilization + self.quality <= 0:
             raise ValueError("at least one routing weight must be positive")
         return self
 
@@ -47,12 +48,23 @@ class RoutingOptions(BaseModel):
     max_latency_ms: int | None = Field(default=None, ge=1)
     max_estimated_cost_usd: Decimal | None = Field(default=None, ge=0)
     min_quality: float | None = Field(default=None, ge=0, le=1)
+    allowed_providers: list[str] | None = Field(default=None, min_length=1)
+    excluded_providers: list[str] = Field(default_factory=list)
+    simulated_failure_provider: str | None = None
+    require_trusted: bool = False
+    cache_mode: Literal["default", "bypass"] = "default"
     weights: RoutingWeights = Field(default_factory=RoutingWeights)
 
     @model_validator(mode="after")
     def validate_single_provider(self) -> RoutingOptions:
         if self.policy == "single_provider" and not self.preferred_provider:
             raise ValueError("single_provider requires preferred_provider")
+        if self.allowed_providers is not None and len(set(self.allowed_providers)) != len(
+            self.allowed_providers
+        ):
+            raise ValueError("allowed_providers must not contain duplicates")
+        if len(set(self.excluded_providers)) != len(self.excluded_providers):
+            raise ValueError("excluded_providers must not contain duplicates")
         return self
 
 
@@ -101,6 +113,7 @@ class RoutingMetadata(BaseModel):
     simulated: bool
     cache_hit: bool
     estimated_cost_usd: str
+    maximum_estimated_cost_usd: str
     latency_ms: float
 
 

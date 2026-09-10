@@ -4,7 +4,7 @@ An evidence-driven platform for cost-, latency-, quality-, and health-aware rout
 
 ## Status
 
-Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled HTTP requests and 60/60 provider-fault scenarios passed. Iteration 10 prepared guarded cloud validation. The current free-hosting iteration adds a Render gateway and Key Value deployment path for the existing Netlify dashboard; AWS Bedrock remains disabled and no paid provider is invoked.
+Iterations 9–12 are complete with retained hosted evidence, guarded cloud-validation tooling, release automation, and a connected Netlify-to-Render demo. Iteration 13 adds an interviewer-focused interactive control surface without changing the free-first boundary: AWS Bedrock remains disabled and no paid provider is invoked.
 
 ## Implemented
 
@@ -29,6 +29,12 @@ Iteration 9 is complete with retained hosted evidence: 12,000/12,000 controlled 
 - trace IDs returned through `X-Trace-ID`
 - bounded JSON telemetry summaries and recent routing events
 - responsive static observability dashboard configured for Netlify
+- request-level provider allowlists and safe simulated-provider failure injection
+- trusted-provider policy gates for sensitive-request demonstrations
+- request-level exact-cache bypass controls
+- configurable cost, latency, utilization, and quality routing weights
+- live provider cards with price, quality, load, health, and trust metadata
+- detailed attempt paths, cost ceilings, actual cost, token use, and decision evidence
 - local Ollama chat inference through the native `/api/chat` API
 - Amazon Bedrock inference through the model-independent Converse API
 - exact Bedrock preflight token counting and concurrency-safe budget reservations
@@ -135,10 +141,14 @@ python -m http.server 8888 --directory dashboard
 Then open <http://localhost:8888>. The dashboard can:
 
 - submit real inference requests through the adaptive router
-- display the selected provider, cache outcome, fallback count, response, and trace ID
+- constrain provider eligibility and safely simulate a request-scoped provider outage
+- demonstrate trusted-only routing and exact-cache bypass behavior
+- tune cost, latency, utilization, and quality weights
+- display the selected provider, attempt path, cache outcome, cost, tokens, response, and trace ID
 - poll current cache statistics and provider circuit health
 - visualize recent request latency and per-provider success/failure totals
 - show a bounded stream of recent routing events
+- explain the architecture, reliability mechanisms, deployment boundaries, and retained evidence
 
 The root `netlify.toml` sets `dashboard` as the publish directory. No Vercel configuration is required. When the API is deployed, set its `CORS_ALLOWED_ORIGINS` value to the exact Netlify site origin.
 
@@ -272,7 +282,9 @@ Mock-provider prices, quality scores, latency, and failures are controlled simul
 8. Kubernetes, Helm, and Terraform — complete; cloud apply intentionally pending
 9. Repeated benchmarks and fault injection — complete with hosted evidence
 10. Controlled cloud validation and v1.0 release — guarded validation tooling complete
-11. Completely free Render + Netlify hosted demo — deployed; retained validation in progress
+11. Release hardening and permanent evidence — complete
+12. Completely free Render + Netlify hosted demo — complete
+13. Interactive interviewer showcase — in review
 
 ## License
 

@@ -44,6 +44,13 @@ def main() -> None:
         "latency-chart",
         "provider-list",
         "event-table",
+        "provider-options",
+        "outage-provider",
+        "cache-mode",
+        "sensitive-request",
+        "cost-weight",
+        "utilization-weight",
+        "cache-card",
     }
     missing = required_ids.difference(parser.ids)
     if missing:
@@ -61,6 +68,23 @@ def main() -> None:
         raise SystemExit("dashboard does not default to the reviewed hosted API")
     if "setInterval(refresh, 5000)" not in application:
         raise SystemExit("dashboard does not retry a sleeping free-tier gateway")
+
+    required_capabilities = {
+        "allowed_providers",
+        "excluded_providers",
+        "simulated_failure_provider",
+        "require_trusted",
+        "cache_mode",
+        "maximum_estimated_cost_usd",
+        "attempted_providers",
+    }
+    missing_capabilities = {
+        capability for capability in required_capabilities if capability not in application
+    }
+    if missing_capabilities:
+        raise SystemExit(
+            f"dashboard is missing showcase capabilities: {sorted(missing_capabilities)}"
+        )
 
     print(
         f"Dashboard validation passed: {len(parser.ids)} IDs, "

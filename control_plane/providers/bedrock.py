@@ -65,6 +65,8 @@ class BedrockProvider:
             input_cost_per_million_tokens_usd=str(self.input_cost_per_million_tokens_usd),
             output_cost_per_million_tokens_usd=str(self.output_cost_per_million_tokens_usd),
             quality_score=self.quality_score,
+            trusted_for_sensitive=False,
+            deployment="AWS Bedrock Converse API",
         )
 
     def _converse_input(self, request: ChatCompletionRequest) -> dict[str, Any]:

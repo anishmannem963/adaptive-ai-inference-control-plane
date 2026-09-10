@@ -3,241 +3,94 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="Live observability console for the Adaptive AI Inference Control Plane."
-    />
-    <title>Adaptive AI Control Plane · Observatory</title>
+    <meta name="description" content="Interactive observability and routing demo for the Adaptive AI Inference Control Plane." />
+    <title>Adaptive AI Inference Control Plane</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="ambient ambient-one"></div>
-    <div class="ambient ambient-two"></div>
-
+    <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
     <header class="shell topbar">
-      <a class="brand" href="/" aria-label="Adaptive AI Control Plane home">
-        <span class="brand-mark">A</span>
-        <span>
-          <strong>Adaptive AI</strong>
-          <small>Control Plane Observatory</small>
-        </span>
-      </a>
-      <div class="connection">
-        <span id="connection-dot" class="status-dot"></span>
-        <span id="connection-label">Not connected</span>
-      </div>
+      <a class="brand" href="#top" aria-label="Adaptive AI Control Plane home"><span class="brand-mark">A</span><span><strong>Adaptive AI</strong><small>Inference Control Plane</small></span></a>
+      <nav aria-label="Primary navigation"><a href="#playground">Playground</a><a href="#evidence">Evidence</a><a href="#architecture">Architecture</a><a id="docs-link" href="https://adaptive-ai-inference-control-plane-api.onrender.com/docs" target="_blank" rel="noreferrer">API docs ↗</a></nav>
+      <div class="connection" aria-live="polite"><span id="connection-dot" class="status-dot"></span><span id="connection-label">Connecting</span></div>
     </header>
 
-    <main class="shell">
+    <main id="top" class="shell">
       <section class="hero">
         <div>
-          <p class="eyebrow">INTERVIEW DEMO · LIVE SYSTEM STATE</p>
-          <h1>See every inference decision.</h1>
-          <p class="hero-copy">
-            Inspect routing, provider health, cache behavior, failover, latency, and distributed
-            traces from one evidence-driven control plane.
-          </p>
+          <p class="eyebrow">PUBLIC ENGINEERING SANDBOX</p>
+          <h1>Route AI inference with evidence, not guesses.</h1>
+          <p class="hero-copy">A working FastAPI control plane that filters, scores, protects, executes, and observes every inference request across configurable model providers.</p>
+          <div class="hero-actions"><a class="button primary compact" href="#playground">Try the router</a><a class="button ghost compact" href="#architecture">Explore the system</a></div>
         </div>
-        <div class="endpoint-card">
-          <label for="api-url">Gateway URL</label>
-          <div class="endpoint-row">
-            <input id="api-url" type="url" value="https://adaptive-ai-inference-control-plane-api.onrender.com" />
-            <button id="connect-button" class="button secondary" type="button">Connect</button>
-          </div>
-          <p id="last-refresh">Waiting for a gateway connection.</p>
+        <div class="hero-console" aria-label="Live platform summary">
+          <div class="console-head"><span>CONTROL PLANE</span><strong id="hero-status">WAKING</strong></div>
+          <div class="hero-stat-grid"><div><strong id="provider-count">3</strong><span>Provider profiles</span></div><div><strong>4</strong><span>Routing signals</span></div><div><strong>12K</strong><span>Validated requests</span></div><div><strong>60/60</strong><span>Fault scenarios</span></div></div>
+          <div class="endpoint-card"><label for="api-url">Gateway URL</label><div class="endpoint-row"><input id="api-url" type="url" value="https://adaptive-ai-inference-control-plane-api.onrender.com" /><button id="connect-button" class="button secondary" type="button">Connect</button></div><p id="last-refresh">Waiting for the free gateway.</p></div>
         </div>
       </section>
 
-      <section class="kpi-grid" aria-label="System metrics">
-        <article class="kpi">
-          <span>Completed requests</span>
-          <strong id="completed-requests">0</strong>
-          <small>Bounded runtime summary</small>
-        </article>
-        <article class="kpi">
-          <span>Average latency</span>
-          <strong><span id="average-latency">0</span><em> ms</em></strong>
-          <small>End-to-end gateway time</small>
-        </article>
-        <article class="kpi">
-          <span>Cache efficiency</span>
-          <strong><span id="cache-efficiency">0</span><em>%</em></strong>
-          <small id="cache-detail">0 hits · 0 replays</small>
-        </article>
-        <article class="kpi">
-          <span>Fallback transitions</span>
-          <strong id="fallback-count">0</strong>
-          <small>Provider isolation events</small>
-        </article>
+      <aside class="boundary-note"><span>i</span><p><strong>Real control plane, controlled inference providers.</strong> The public demo executes the real gateway, routing, cache, quotas, circuit breakers, fallback, metrics, and tracing paths. Its provider latency, price, utilization, and quality inputs are deterministic simulations, so the demo stays free and reproducible.</p></aside>
+
+      <section class="kpi-grid" aria-label="Live system metrics">
+        <article class="kpi"><span>Completed requests</span><strong id="completed-requests">0</strong><small>Runtime summary</small></article>
+        <article class="kpi"><span>Average latency</span><strong><span id="average-latency">0</span><em> ms</em></strong><small>Gateway duration</small></article>
+        <article class="kpi"><span>Cache efficiency</span><strong><span id="cache-efficiency">0</span><em>%</em></strong><small id="cache-detail">0 hits · 0 replays</small></article>
+        <article class="kpi"><span>Fallback transitions</span><strong id="fallback-count">0</strong><small>Isolated provider attempts</small></article>
       </section>
+
+      <section id="playground" class="section-heading"><p class="eyebrow">INTERACTIVE DEMO</p><h2>Watch a routing decision happen</h2><p>Change constraints, remove a provider, require a trusted target, or repeat a prompt to inspect exact-cache behavior.</p></section>
 
       <section class="workspace-grid">
         <article class="panel playground">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">REQUEST PLAYGROUND</p>
-              <h2>Route a completion</h2>
-            </div>
-            <span class="badge">OpenAI-compatible</span>
-          </div>
-
+          <div class="panel-heading"><div><p class="eyebrow">REQUEST BUILDER</p><h3>Inference playground</h3></div><button id="load-example" class="button ghost" type="button">Load example</button></div>
           <form id="request-form">
-            <label for="prompt">Prompt</label>
-            <textarea id="prompt" rows="4">Explain why health-aware routing matters.</textarea>
-
-            <div class="form-grid">
-              <label>
-                Policy
-                <select id="policy">
-                  <option value="adaptive">Adaptive</option>
-                  <option value="lowest_cost">Lowest cost</option>
-                  <option value="lowest_latency">Lowest latency</option>
-                  <option value="highest_quality">Highest quality</option>
-                  <option value="round_robin">Round robin</option>
-                </select>
-              </label>
-              <label>
-                Minimum quality
-                <input id="quality" type="number" min="0" max="1" step="0.05" value="0.7" />
-              </label>
-              <label>
-                Max latency
-                <input id="latency-budget" type="number" min="1" step="10" value="500" />
-              </label>
-              <label>
-                Max tokens
-                <input id="max-tokens" type="number" min="1" max="4096" value="128" />
-              </label>
+            <div class="label-row"><label for="prompt">Prompt</label><span id="prompt-count">0 / 4000</span></div>
+            <textarea id="prompt" maxlength="4000" rows="4">Explain why health-aware routing matters.</textarea>
+            <fieldset><legend>Eligible providers</legend><div id="provider-options" class="provider-options"><span class="muted">Loading provider profiles…</span></div></fieldset>
+            <div class="form-grid three">
+              <label>Routing policy<select id="policy"><option value="adaptive">Adaptive</option><option value="lowest_cost">Lowest cost</option><option value="lowest_latency">Lowest latency</option><option value="highest_quality">Highest quality</option><option value="round_robin">Round robin</option></select></label>
+              <label>Request-scoped outage<select id="outage-provider"><option value="">None</option></select></label>
+              <label>Cache policy<select id="cache-mode"><option value="default">Exact cache</option><option value="bypass">Bypass cache</option></select></label>
+              <label>Maximum output<select id="max-tokens"><option value="64">64 tokens</option><option value="128" selected>128 tokens</option><option value="256">256 tokens</option><option value="512">512 tokens</option></select></label>
+              <label>Maximum latency<div class="input-suffix"><input id="latency-budget" type="number" min="1" step="10" value="500" /><span>ms</span></div></label>
+              <label>Maximum estimated cost<div class="input-prefix"><span>$</span><input id="cost-budget" type="number" min="0" step="0.000001" placeholder="No limit" /></div></label>
+              <label>Minimum quality<input id="quality" type="number" min="0" max="1" step="0.05" value="0.7" /></label>
             </div>
-
-            <button id="send-button" class="button primary" type="submit">
-              Send through control plane
-            </button>
+            <label class="toggle-card" for="sensitive-request"><input id="sensitive-request" type="checkbox" /><span><strong>Sensitive request</strong><small>Route only to profiles explicitly configured as trusted. This demonstrates policy—not compliance certification.</small></span></label>
+            <details class="weights-panel"><summary>Adaptive routing weights</summary><p>Lower normalized score wins after hard constraints are applied.</p><div class="weight-grid">
+              <label>Cost <output id="cost-weight-output">40%</output><input id="cost-weight" type="range" min="0" max="100" value="40" /></label>
+              <label>Latency <output id="latency-weight-output">30%</output><input id="latency-weight" type="range" min="0" max="100" value="30" /></label>
+              <label>Utilization <output id="utilization-weight-output">15%</output><input id="utilization-weight" type="range" min="0" max="100" value="15" /></label>
+              <label>Quality <output id="quality-weight-output">15%</output><input id="quality-weight" type="range" min="0" max="100" value="15" /></label>
+            </div><small>Utilization is a configured simulation input in the public provider pool.</small></details>
+            <button id="send-button" class="button primary" type="submit">Run inference →</button><p class="form-foot">No API key required · 4,000-character prompt limit · bounded output</p>
           </form>
-
-          <div id="request-result" class="result empty">
-            Submit a request to inspect its route, trace, cache state, and response.
-          </div>
+          <div id="request-result" class="result empty" aria-live="polite">Submit a request to inspect its route, constraints, cost, tokens, trace, and response.</div>
         </article>
 
-        <article class="panel architecture">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">DECISION PATH</p>
-              <h2>What the gateway controls</h2>
-            </div>
-          </div>
-          <ol class="flow">
-            <li>
-              <span>01</span>
-              <div><strong>Constrain</strong><small>Cost, latency, quality, model policy</small></div>
-            </li>
-            <li>
-              <span>02</span>
-              <div><strong>Score</strong><small>Rank only eligible, healthy providers</small></div>
-            </li>
-            <li>
-              <span>03</span>
-              <div><strong>Protect</strong><small>Rate limit, bulkhead, deadline, circuit</small></div>
-            </li>
-            <li>
-              <span>04</span>
-              <div><strong>Execute</strong><small>Cache hit or isolated provider call</small></div>
-            </li>
-            <li>
-              <span>05</span>
-              <div><strong>Observe</strong><small>Metrics, trace IDs, health, decision evidence</small></div>
-            </li>
-          </ol>
-          <a id="metrics-link" class="text-link" href="https://adaptive-ai-inference-control-plane-api.onrender.com/metrics" target="_blank">
-            Open raw Prometheus metrics ↗
-          </a>
-        </article>
+        <aside class="side-stack">
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">LIVE PLATFORM STATE</p><h3>Provider pool</h3></div><span class="badge">LIVE</span></div><div id="provider-list" class="provider-list empty-chart">Waiting for provider data.</div></article>
+          <article class="panel"><div class="panel-heading"><div><p class="eyebrow">ROUTER CONFIGURATION</p><h3>Current weights</h3></div></div><div id="weight-summary" class="weight-summary"></div><code class="score-formula">score = cost + latency + utilization + quality penalty</code></article>
+          <article class="panel dependency-panel"><div class="panel-heading"><div><p class="eyebrow">RUNTIME DEPENDENCIES</p><h3>Connected services</h3></div></div><ul>
+            <li><i class="ok"></i><span><strong>FastAPI gateway</strong><small>Live on Render</small></span></li><li><i class="ok"></i><span><strong>Redis-compatible cache</strong><small>Volatile free-tier state</small></span></li><li><i class="ok"></i><span><strong>Prometheus + OpenTelemetry</strong><small>Metrics and trace instrumentation</small></span></li><li><i></i><span><strong>AWS Bedrock</strong><small>Implemented, disabled pending paid validation</small></span></li><li><i></i><span><strong>vLLM GPU target</strong><small>Planned controlled validation</small></span></li>
+          </ul></article>
+        </aside>
       </section>
 
-      <section class="two-column">
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">LATENCY TREND</p>
-              <h2>Recent request duration</h2>
-            </div>
-            <span class="legend"><i></i> milliseconds</span>
-          </div>
-          <div id="latency-chart" class="chart empty-chart">No request samples yet.</div>
-        </article>
+      <section id="evidence" class="section-heading"><p class="eyebrow">RETAINED EVIDENCE</p><h2>Claims backed by repeatable experiments</h2><p>Every published result is scoped to deterministic mock providers and retained as machine-readable GitHub Actions evidence.</p></section>
+      <section class="evidence-grid"><article><strong>12,000 / 12,000</strong><span>Successful hosted requests</span><small>Four routing policies · repeated runs</small></article><article><strong>60 / 60</strong><span>Provider-fault scenarios passed</span><small>Errors · timeouts · circuits · recovery</small></article><article><strong>38.558%</strong><span>Estimated cost reduction</span><small>Adaptive vs. round robin · controlled prices</small></article><article><strong>179.105 ms</strong><span>Mean p95 gateway latency</span><small>Controlled hosted evaluation</small></article></section>
 
-        <article class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="eyebrow">PROVIDER RUNTIME</p>
-              <h2>Calls and health</h2>
-            </div>
-          </div>
-          <div id="provider-list" class="provider-list empty-chart">No provider calls yet.</div>
-        </article>
-      </section>
+      <section class="two-column telemetry-grid"><article class="panel"><div class="panel-heading"><div><p class="eyebrow">LATENCY TREND</p><h3>Recent request duration</h3></div><span class="legend"><i></i> milliseconds</span></div><div id="latency-chart" class="chart empty-chart">No request samples yet.</div></article><article class="panel"><div class="panel-heading"><div><p class="eyebrow">CACHE STATE</p><h3>Availability without dependency lock-in</h3></div></div><div id="cache-card" class="cache-card"><strong>Waiting for cache state</strong><p>Cache failures fail open so inference can continue.</p></div><a id="metrics-link" class="text-link" href="https://adaptive-ai-inference-control-plane-api.onrender.com/metrics" target="_blank" rel="noreferrer">Open raw Prometheus metrics ↗</a></article></section>
 
-      <section class="panel event-panel">
-        <div class="panel-heading">
-          <div>
-            <p class="eyebrow">TRACE EVENT STREAM</p>
-            <h2>Recent routing outcomes</h2>
-          </div>
-          <button id="refresh-button" class="button ghost" type="button">Refresh</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Request</th>
-                <th>Provider</th>
-                <th>Policy</th>
-                <th>Cache</th>
-                <th>Latency</th>
-                <th>Fallbacks</th>
-                <th>Trace</th>
-              </tr>
-            </thead>
-            <tbody id="event-table">
-              <tr><td colspan="8" class="empty-row">No telemetry events yet.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+      <section class="panel event-panel"><div class="panel-heading"><div><p class="eyebrow">TRACE EVENT STREAM</p><h3>Recent routing outcomes</h3></div><button id="refresh-button" class="button ghost" type="button">Refresh</button></div><div class="table-wrap"><table><thead><tr><th>Time</th><th>Request</th><th>Provider</th><th>Policy</th><th>Cache</th><th>Latency</th><th>Fallbacks</th><th>Trace</th></tr></thead><tbody id="event-table"><tr><td colspan="8" class="empty-row">No telemetry events yet.</td></tr></tbody></table></div></section>
 
-      <section class="proof-grid">
-        <article>
-          <span>01</span>
-          <h3>Explainable routing</h3>
-          <p>Every response states the selected provider, eligible alternatives, policy, and reason.</p>
-        </article>
-        <article>
-          <span>02</span>
-          <h3>Failure isolation</h3>
-          <p>Circuit breakers, deadlines, bulkheads, and bounded fallback contain provider failures.</p>
-        </article>
-        <article>
-          <span>03</span>
-          <h3>Cost avoidance</h3>
-          <p>Exact caching and retry idempotency avoid unnecessary duplicate provider execution.</p>
-        </article>
-        <article>
-          <span>04</span>
-          <h3>Evidence first</h3>
-          <p>Prometheus counters and trace IDs support reproducible claims instead of estimates alone.</p>
-        </article>
-      </section>
+      <section id="architecture" class="section-heading"><p class="eyebrow">SYSTEM ARCHITECTURE</p><h2>From browser policy to observable execution</h2><p>The public sandbox uses the same interfaces as local Ollama, guarded Bedrock, Kubernetes, and future GPU targets.</p></section>
+      <ol class="architecture-flow"><li><span>01</span><strong>Netlify dashboard</strong><small>Build request and constraints</small></li><li><span>02</span><strong>FastAPI gateway</strong><small>Validate and admit traffic</small></li><li><span>03</span><strong>Policy router</strong><small>Filter, normalize, and rank</small></li><li><span>04</span><strong>Reliability layer</strong><small>Deadline, circuit, bulkhead</small></li><li><span>05</span><strong>Provider adapter</strong><small>Execute or safely fall back</small></li></ol>
+      <section class="solution-grid"><article><span>01</span><h3>Policy gates first</h3><p>Model, allowlist, outage, privacy, health, latency, cost, and quality constraints remove unsafe candidates before scoring.</p></article><article><span>02</span><h3>Score eligible targets</h3><p>Adaptive routing balances normalized cost, latency, utilization, and quality signals with request-controlled weights.</p></article><article><span>03</span><h3>Contain failures</h3><p>Deadlines, token buckets, bulkheads, circuit breakers, and bounded fallback stop one provider from consuming the gateway.</p></article><article><span>04</span><h3>Avoid duplicate spend</h3><p>Exact caching and Redis-backed idempotency prevent repeated requests from unnecessarily executing a provider.</p></article><article><span>05</span><h3>Recover visibly</h3><p>Half-open single-flight probes restore isolated providers while health, attempts, fallbacks, and traces remain inspectable.</p></article><article><span>06</span><h3>Deploy reproducibly</h3><p>Docker, kind, Kubernetes, Helm, Terraform, CI, and release artifacts make the same control plane portable.</p></article></section>
+      <section class="boundary-grid"><article class="panel"><p class="eyebrow">WORKING TODAY</p><h3>Validated implementation</h3><ul><li>FastAPI gateway and routing baselines</li><li>Redis cache and idempotent replay</li><li>Prometheus and OpenTelemetry</li><li>Ollama and guarded Bedrock adapters</li><li>Kubernetes, Helm, Terraform, and kind CI</li></ul></article><article class="panel"><p class="eyebrow">CLAIM BOUNDARY</p><h3>Not presented as production proof</h3><ul><li>Public provider responses are simulated</li><li>Azure and GCP adapters are not implemented</li><li>Bedrock has not run the paid validation gate</li><li>vLLM GPU serving remains planned</li><li>Kafka is excluded without a justified workload</li></ul></article></section>
     </main>
-
-    <footer class="shell">
-      <span>Adaptive AI Inference Control Plane</span>
-      <a href="https://github.com/anishmannem963/adaptive-ai-inference-control-plane">
-        View source on GitHub ↗
-      </a>
-    </footer>
-
+    <footer class="shell"><span>Adaptive AI Inference Control Plane</span><div><a href="#playground">Playground</a><a id="footer-docs-link" href="https://adaptive-ai-inference-control-plane-api.onrender.com/docs" target="_blank" rel="noreferrer">API docs</a><a href="https://github.com/anishmannem963/adaptive-ai-inference-control-plane">GitHub ↗</a></div></footer>
     <script src="/app.js" defer></script>
   </body>
 </html>
